@@ -1,4 +1,4 @@
-import { SPREADSHEET_ID, SHEET_NAME, COL } from './config.js'
+import { SPREADSHEET_ID, SHEET_NAME, COL, detectarTono } from './config.js'
 
 const BASE_URL = 'https://docs.google.com/spreadsheets/d'
 
@@ -24,36 +24,53 @@ function parseGvizResponse(raw) {
 }
 
 /**
- * Convierte una fila del resultado gviz en un objeto con campos legibles.
+ * Convierte una fila del resultado gviz en el mismo shape que usa la UI del diseño.
  * Devuelve null si la fila está vacía.
  */
 function rowToObject(row) {
   if (!row?.c) return null
   const get = (i) => row.c[i]?.v ?? row.c[i]?.f ?? null
 
+  const beca = String(get(COL.BECA) ?? '').trim()
+
   return {
     codigo:  String(get(COL.CODIGO)  ?? '').trim(),
     nombre:  String(get(COL.NOMBRE)  ?? '').trim(),
-    puntaje: get(COL.PUNTAJE),
-    estado:  String(get(COL.ESTADO)  ?? '').trim(),
-    carrera: get(COL.CARRERA) != null ? String(get(COL.CARRERA)).trim() : null,
-    obs:     get(COL.OBS)     != null ? String(get(COL.OBS)).trim()     : null,
+    puntaje: String(get(COL.PUNTAJE) ?? '').trim(),
+    beca,
+    tono:    detectarTono(beca),
   }
 }
 
 /**
- * Busca un postulante por código o DNI.
- * @param {string} valor — código o DNI a buscar (se normaliza a mayúsculas y sin espacios)
- * @returns {Promise<object|null>} — objeto con datos del postulante, o null si no se encuentra
+ * Busca un postulante por código (búsqueda exacta, case-insensitive).
+ * @param {string} valor — código del alumno (ej. LOB-1024)
+ * @returns {Promise<object|null>}
  */
-export async function fetchResultado(valor) {
+export async function fetchPorCodigo(valor) {
   const normalizado = String(valor).trim().toUpperCase()
-  if (!normalizado) throw new Error('Ingresá un código o DNI válido')
+  if (!normalizado) throw new Error('Ingresá un código válido')
 
-  // Columna A contiene el código/DNI; UPPER() para comparación case-insensitive
   const query = `SELECT * WHERE UPPER(A) = '${normalizado}' LIMIT 1`
-  const url   = buildQueryUrl(query)
+  return _fetchQuery(query)
+}
 
+/**
+ * Busca postulantes por nombre (búsqueda parcial, case-insensitive, devuelve el primer match).
+ * @param {string} valor — apellidos y/o nombres
+ * @returns {Promise<object|null>}
+ */
+export async function fetchPorNombre(valor) {
+  const normalizado = String(valor).trim()
+  if (!normalizado) throw new Error('Ingresá un nombre válido')
+
+  // UPPER(B) CONTAINS permite búsqueda parcial sin acentos exactos
+  const query = `SELECT * WHERE UPPER(B) CONTAINS '${normalizado.toUpperCase()}' LIMIT 1`
+  return _fetchQuery(query)
+}
+
+async function _fetchQuery(query) {
+  const url = buildQueryUrl(query)
   const res = await fetch(url)
   if (!res.ok) throw new Error(`Error al conectar con la base de datos (${res.status})`)
 

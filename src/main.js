@@ -1,91 +1,131 @@
 import './style.css'
-import { fetchResultado } from './sheets.js'
-import { renderLoading, renderNotFound, renderError, renderResultado, clearResult } from './ui.js'
+import { fetchPorCodigo, fetchPorNombre } from './sheets.js'
+import { MENSAJES, FECHA_EXAMEN } from './config.js'
 
-const form      = document.getElementById('search-form')
-const input     = document.getElementById('search-input')
-const btn       = document.getElementById('search-btn')
-const result    = document.getElementById('result')
-const inputWrap = document.getElementById('input-wrap')
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
 
-// ─── ESTADO ──────────────────────────────────────────────────────────────────
+const norm = (s) =>
+  (s ?? '').toString().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '')
 
-let isLoading = false
+const esc = (s) =>
+  String(s).replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 
-// ─── UTILIDADES ──────────────────────────────────────────────────────────────
+// ─── DOM ─────────────────────────────────────────────────────────────────────
 
-function setLoading(v) {
-  isLoading = v
-  btn.disabled = v
-  input.disabled = v
+const form     = document.querySelector('#search-form')
+const typeSel  = document.querySelector('#search-type')
+const input    = document.querySelector('#search-input')
+const fieldLbl = document.querySelector('#field-label')
+const out      = document.querySelector('#result')
+const btn      = document.querySelector('#search-btn')
 
-  if (v) {
-    btn.innerHTML = `<svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-    </svg>`
-  } else {
-    btn.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
-    </svg>`
-  }
+// ─── FECHA ───────────────────────────────────────────────────────────────────
+
+const fechaFmt = FECHA_EXAMEN
+document.querySelector('#hero-fecha').textContent  = `Publicación oficial · ${fechaFmt}`
+document.querySelector('#exam-fecha').textContent  = `Examen de becas — ${fechaFmt}`
+
+// ─── ESTILOS POR TONO ─────────────────────────────────────────────────────────
+
+const BECA_STYLE = {
+  full:  'bg-gold text-ink',
+  media: 'bg-teal text-paper',
+  none:  'bg-sand text-ink',
 }
 
-function setInputError(msg) {
-  input.classList.add('ring-2', 'ring-rose-400', 'border-rose-400')
-  const prev = inputWrap.querySelector('.input-error-msg')
-  if (prev) prev.remove()
-  const span = document.createElement('p')
-  span.className = 'input-error-msg text-xs text-rose-500 mt-1 ml-1'
-  span.textContent = msg
-  inputWrap.appendChild(span)
+const PLACEHOLDER = { codigo: 'Ej. LOB-1024', nombre: 'Ej. Ruiz Mendoza' }
+const LABEL       = { codigo: 'Código',        nombre: 'Apellidos y nombres' }
+
+// ─── TEMPLATES ───────────────────────────────────────────────────────────────
+
+function tarjeta(a) {
+  return `
+    <div class="lob-rise flex flex-col gap-3 border-l-[6px] ${a.tono === 'none' ? 'border-sand' : 'border-gold'} bg-white p-6 sm:gap-4 sm:p-8">
+      <span class="text-xl font-bold leading-tight sm:text-[1.75rem]">${esc(a.nombre)}</span>
+      <span class="text-xs uppercase tracking-[0.14em] text-slate sm:text-sm">${esc(a.codigo)} · Puntaje ${esc(a.puntaje)}</span>
+      <span class="inline-flex self-start rounded-sm px-4 py-2 text-[0.9375rem] font-bold sm:text-base ${BECA_STYLE[a.tono]}">${esc(a.beca)}</span>
+      <span class="max-w-[52ch] text-[0.9375rem] leading-relaxed text-ink/80">${esc(MENSAJES[a.tono])}</span>
+    </div>`
 }
 
-function clearInputError() {
-  input.classList.remove('ring-2', 'ring-rose-400', 'border-rose-400')
-  inputWrap.querySelector('.input-error-msg')?.remove()
+function cargando() {
+  return `
+    <div class="lob-rise flex items-center gap-3 py-2 text-slate">
+      <svg class="h-5 w-5 animate-spin text-teal" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+      </svg>
+      <span class="text-[0.9375rem]">Consultando resultados…</span>
+    </div>`
 }
+
+function sinResultado() {
+  return `<p class="text-base text-brick sm:text-[1.0625rem]">No encontramos ese dato. Revisá el código o escribí los apellidos completos.</p>`
+}
+
+function errorConexion(msg) {
+  return `<p class="text-base text-brick sm:text-[1.0625rem]">No se pudo conectar con la base de datos. ${esc(msg ?? '')}</p>`
+}
+
+// ─── SINCRONIZAR CAMPO ───────────────────────────────────────────────────────
+
+function sincronizarCampo() {
+  const t = typeSel.value
+  fieldLbl.textContent  = LABEL[t]
+  input.placeholder     = PLACEHOLDER[t]
+  out.innerHTML         = ''
+}
+
+typeSel?.addEventListener('change', sincronizarCampo)
+input?.addEventListener('input', () => { out.innerHTML = '' })
 
 // ─── BÚSQUEDA ────────────────────────────────────────────────────────────────
 
-async function buscar(valor) {
-  clearInputError()
+let loading = false
 
-  const limpio = valor.trim()
-  if (!limpio) {
-    setInputError('Ingresá tu código o DNI para consultar.')
-    input.focus()
-    return
-  }
+async function buscar(tipo, query) {
+  const q = query.trim()
+  if (!q) { out.innerHTML = ''; return }
 
-  setLoading(true)
-  renderLoading(result)
+  loading = true
+  btn.disabled = true
+  input.disabled = true
+  out.innerHTML = cargando()
 
   try {
-    const dato = await fetchResultado(limpio)
+    const alumno = tipo === 'codigo'
+      ? await fetchPorCodigo(q)
+      : await fetchPorNombre(q)
 
-    if (!dato) {
-      renderNotFound(result)
-    } else {
-      renderResultado(result, dato)
-      result.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-    }
+    out.innerHTML = alumno ? tarjeta(alumno) : sinResultado()
   } catch (err) {
     console.error(err)
-    renderError(result, err.message)
+    out.innerHTML = errorConexion(err.message)
   } finally {
-    setLoading(false)
+    loading = false
+    btn.disabled = false
+    input.disabled = false
   }
 }
 
-// ─── EVENTOS ─────────────────────────────────────────────────────────────────
-
-form.addEventListener('submit', (e) => {
+form?.addEventListener('submit', (e) => {
   e.preventDefault()
-  if (!isLoading) buscar(input.value)
+  if (!loading) buscar(typeSel.value, input.value)
 })
 
-input.addEventListener('input', () => {
-  clearInputError()
-  if (!input.value.trim()) clearResult(result)
+// ─── CARRUSEL ─────────────────────────────────────────────────────────────────
+
+const carousel = document.querySelector('#carousel')
+
+document.querySelectorAll('[data-carousel]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    if (!carousel) return
+    const card = carousel.querySelector('figure')
+    const gap  = parseFloat(getComputedStyle(carousel).columnGap) || 0
+    const step = (card?.getBoundingClientRect().width ?? carousel.clientWidth) + gap
+    carousel.scrollBy({ left: btn.dataset.carousel === 'next' ? step : -step, behavior: 'smooth' })
+  })
 })
