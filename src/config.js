@@ -18,4 +18,4 @@ export const MENSAJES = {
 
 // ─── FECHA DEL EXAMEN ────────────────────────────────────────────────────────
 // Se muestra en el hero y debajo del H1. Formato libre.
-export const FECHA_EXAMEN = '05 de agosto de 2026'
+export const FECHA_EXAMEN = '06 de agosto de 2026'
