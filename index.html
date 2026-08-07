@@ -7,7 +7,7 @@
 <meta name="description" content="Consulta los resultados del examen de becas de la Academia Lobitos. Busca por código o por apellidos y nombres.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./src/style.css">
 </head>
 <body class="bg-paper text-ink font-serif antialiased">
@@ -32,32 +32,49 @@
   </header>
 
   <!-- ============ HERO ============ -->
-  <section class="bg-ink text-paper">
-    <div class="mx-auto grid max-w-6xl items-center gap-8 px-5 py-10 sm:px-8 sm:py-12 md:grid-cols-[1fr_auto] md:gap-10">
-      <div class="flex flex-col gap-3">
+  <section class="bg-ink text-paper overflow-hidden">
+    <div class="grid md:grid-cols-2">
+
+      <!-- mitad izquierda — texto -->
+      <div class="flex flex-col justify-center gap-3 px-5 py-10 sm:px-8 sm:py-12 md:px-12 xl:pl-20 xl:pr-10 order-1">
         <span id="hero-fecha" class="text-[11px] uppercase tracking-[0.24em] text-gold sm:text-xs">Publicación oficial</span>
         <h2 class="text-[2rem] font-bold leading-[1.05] sm:text-[2.75rem]">Aquí empieza<br>tu siguiente paso</h2>
         <p class="max-w-[44ch] text-base leading-relaxed text-mist sm:text-[1.0625rem]">Cada lobito que rindió el examen tiene un lugar en esta lista. Búscate abajo y descubre tu resultado.</p>
+        <a href="#resultados"
+           class="mt-2 inline-flex self-start items-center gap-2 rounded-sm border-[1.5px] border-paper px-6 py-3 text-base font-bold text-paper transition-colors hover:bg-paper hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-paper">
+          Ver resultados
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </a>
       </div>
-      <div class="justify-self-center rounded-sm bg-paper p-3 shadow-[0_10px_24px_rgba(0,0,0,0.35)] md:justify-self-end md:p-4">
-        <img src="./img/logo.png" alt="Isotipo de la Academia Lobitos" class="h-32 w-32 object-contain mix-blend-multiply sm:h-40 sm:w-40 md:h-50 md:w-50">
+
+      <!-- mitad derecha — imagen (aspect-ratio = 900/680 de la imagen generada) -->
+      <div class="order-2 h-64 md:h-auto md:aspect-[900/680]">
+        <img src="./img/hero-image.png" alt="" class="w-full h-full object-cover object-center block">
       </div>
+
     </div>
   </section>
 
   <!-- ============ TÍTULO + FORMULARIO ============ -->
-  <section class="mx-auto max-w-6xl px-5 pt-10 pb-8 sm:px-8 sm:pt-14 sm:pb-10">
-    <h1 class="max-w-[16ch] text-[2rem] font-bold leading-[1.04] tracking-tight text-balance sm:text-[3.25rem]">RESULTADOS DEL EXAMEN DE BECAS</h1>
+  <section id="resultados" class="font-sans mx-auto max-w-6xl px-5 pt-10 pb-8 sm:px-8 sm:pt-14 sm:pb-10">
+    <h1 class="max-w-[16ch] text-[2rem] font-bold leading-[1.04] tracking-tight text-balance sm:text-[3.25rem]">Resultados del examen de BECAS</h1>
     <p id="exam-fecha" class="mt-2 text-sm text-slate sm:text-[0.9375rem]">Examen de becas</p>
 
     <form id="search-form" class="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end" novalidate>
       <label class="flex flex-col gap-1.5 text-[11px] uppercase tracking-[0.14em] text-slate sm:text-xs">
         Buscar por
-        <select id="search-type"
-                class="min-h-[52px] rounded-sm border-[1.5px] border-sand bg-white px-3.5 py-3 text-base text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal sm:min-w-[190px] sm:text-[1.0625rem]">
-          <option value="codigo">Código del alumno</option>
-          <option value="nombre">Apellidos y nombres</option>
-        </select>
+        <div class="relative">
+          <select id="search-type"
+                  class="min-h-[52px] w-full appearance-none cursor-pointer rounded-sm border-[1.5px] border-sand bg-white pl-3.5 pr-10 py-3 text-base text-ink transition-colors hover:border-slate focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal sm:min-w-[190px] sm:text-[1.0625rem]">
+            <option value="codigo">Código del alumno</option>
+            <option value="nombre">Apellidos y nombres</option>
+          </select>
+          <svg class="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </div>
       </label>
       <label class="flex flex-1 flex-col gap-1.5 text-[11px] uppercase tracking-[0.14em] text-slate sm:min-w-[260px] sm:text-xs">
         <span id="field-label">Código</span>
@@ -86,21 +103,23 @@
     </div>
 
     <div id="carousel" class="lob-scroller mx-auto flex max-w-6xl snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth px-5 pb-2 sm:gap-5 sm:px-8">
-      <figure class="relative h-56 w-[84vw] shrink-0 snap-start overflow-hidden rounded-sm bg-sand-200 sm:h-70 sm:w-[420px]">
-        <span class="absolute inset-0 grid place-items-center px-4 text-center text-sm text-sand-600">Foto: fachada de la academia</span>
-        <img src="./img/academia-1.jpg" alt="Fachada de la academia" loading="lazy" class="relative h-full w-full object-cover" onerror="this.remove()">
+      <figure class="relative h-56 w-[84vw] shrink-0 snap-start overflow-hidden rounded-sm bg-sand-200 sm:h-80 md:h-[340px] md:w-[534px]">
+        <img src="./img/lobitos1.jpg" alt="Academia Lobitos 1" loading="lazy" class="h-full w-full object-cover">
       </figure>
-      <figure class="relative h-56 w-[84vw] shrink-0 snap-start overflow-hidden rounded-sm bg-sand-200 sm:h-70 sm:w-[420px]">
-        <span class="absolute inset-0 grid place-items-center px-4 text-center text-sm text-sand-600">Foto: aula en clase</span>
-        <img src="./img/academia-2.jpg" alt="Aula en clase" loading="lazy" class="relative h-full w-full object-cover" onerror="this.remove()">
+      <figure class="relative h-56 w-[84vw] shrink-0 snap-start overflow-hidden rounded-sm bg-sand-200 sm:h-80 md:h-[340px] md:w-[534px]">
+        <img src="./img/lobitos2.jpg" alt="Academia Lobitos 2" loading="lazy" class="h-full w-full object-cover">
       </figure>
-      <figure class="relative h-56 w-[84vw] shrink-0 snap-start overflow-hidden rounded-sm bg-sand-200 sm:h-70 sm:w-[420px]">
-        <span class="absolute inset-0 grid place-items-center px-4 text-center text-sm text-sand-600">Foto: alumnos premiados</span>
-        <img src="./img/academia-3.jpg" alt="Alumnos premiados" loading="lazy" class="relative h-full w-full object-cover" onerror="this.remove()">
+      <figure class="relative h-56 w-[84vw] shrink-0 snap-start overflow-hidden rounded-sm bg-sand-200 sm:h-80 md:h-[340px] md:w-[534px]">
+        <img src="./img/lobitos3.jpg" alt="Academia Lobitos 3" loading="lazy" class="h-full w-full object-cover">
       </figure>
-      <figure class="relative h-56 w-[84vw] shrink-0 snap-start overflow-hidden rounded-sm bg-sand-200 sm:h-70 sm:w-[420px]">
-        <span class="absolute inset-0 grid place-items-center px-4 text-center text-sm text-sand-600">Foto: docentes</span>
-        <img src="./img/academia-4.jpg" alt="Docentes" loading="lazy" class="relative h-full w-full object-cover" onerror="this.remove()">
+      <figure class="relative h-56 w-[84vw] shrink-0 snap-start overflow-hidden rounded-sm bg-sand-200 sm:h-80 md:h-[340px] md:w-[534px]">
+        <img src="./img/lobitos4.jpg" alt="Academia Lobitos 4" loading="lazy" class="h-full w-full object-cover">
+      </figure>
+      <figure class="relative h-56 w-[84vw] shrink-0 snap-start overflow-hidden rounded-sm bg-sand-200 sm:h-80 md:h-[340px] md:w-[534px]">
+        <img src="./img/lobitos5.jpg" alt="Academia Lobitos 5" loading="lazy" class="h-full w-full object-cover">
+      </figure>
+      <figure class="relative h-56 w-[84vw] shrink-0 snap-start overflow-hidden rounded-sm bg-sand-200 sm:h-80 md:h-[340px] md:w-[534px]">
+        <img src="./img/lobitos6.jpg" alt="Academia Lobitos 6" loading="lazy" class="h-full w-full object-cover">
       </figure>
     </div>
 
