@@ -5,7 +5,7 @@
 --  Borra: calificaciones, ajustes de promedio y sorteos.
 --  Reinicia: publicación y contadores de sorteo de todas las categorías.
 --  NO toca: concursantes, jurados, administrador, contraseñas ni turnos fijos
---           (p. ej. Romero Balbin Joana Soledad = turno 1 de Secundaria).
+--           (Secundaria: Romero Balbin = turno 1, Santos Román = turno 2).
 -- ════════════════════════════════════════════════════════════════════════════
 begin;
 
