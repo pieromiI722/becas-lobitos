@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Panel del jurado — Concurso de Declamación</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
+</head>
+<body class="bg-paper text-ink font-serif antialiased">
+  <header class="border-b-[3px] border-ink bg-paper">
+    <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-3 sm:px-8">
+      <a href="/" class="flex items-center gap-3">
+        <img src="/img/logo.png" alt="Academia Lobitos" class="h-10 w-10 object-contain mix-blend-multiply">
+        <span class="flex flex-col leading-tight">
+          <span class="text-base font-bold tracking-wide sm:text-lg">Panel del jurado</span>
+          <span id="jurado-nombre" class="font-sans text-[11px] uppercase tracking-[0.18em] text-teal"></span>
+        </span>
+      </a>
+      <button id="btn-salir" type="button" hidden
+              class="cursor-pointer rounded-sm border-[1.5px] border-ink px-4 py-2 font-sans text-sm font-semibold transition-colors hover:bg-ink hover:text-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal">Salir</button>
+    </div>
+  </header>
+  <main id="app"></main>
+  <script type="module" src="/src/pages/jurado.js"></script>
+</body>
+</html>

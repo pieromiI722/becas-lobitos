@@ -1,157 +1,192 @@
 import './style.css'
-import { buscarPorCodigo, buscarPorDni, buscarPorNombre } from './buscar.js'
-import { MENSAJES, FECHA_EXAMEN } from './config.js'
+import { supabase, configurado } from './lib/supabase.js'
+import { CRITERIOS, TOTAL_MAX } from './lib/rubrica.js'
+import { esc, $, $$, fmt } from './lib/ui.js'
 
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
+// ─── RÚBRICA (sección "Cómo califica el jurado") ─────────────────────────────
 
-const esc = (s) =>
-  String(s ?? '').replace(/[&<>"']/g, (c) =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+const maxPeso = Math.max(...CRITERIOS.map((c) => c.max))
+$('#rubrica').innerHTML = CRITERIOS.map((c) => `
+  <li>
+    <div class="flex items-baseline justify-between gap-4 text-[0.9375rem]">
+      <span class="font-medium">${esc(c.nombre)}</span>
+      <span class="shrink-0 font-bold tabular-nums">${c.max} pts</span>
+    </div>
+    <div class="mt-1.5 h-2 bg-sand-200"><div class="h-full bg-teal" style="width:${(c.max / maxPeso) * 100}%"></div></div>
+  </li>`).join('') + `
+  <li class="mt-1 flex items-baseline justify-between border-t-[3px] border-ink pt-3 text-base font-extrabold">
+    <span>Total</span><span class="tabular-nums">${TOTAL_MAX} pts</span>
+  </li>`
 
-// ─── DOM ─────────────────────────────────────────────────────────────────────
+// ─── RESULTADOS ──────────────────────────────────────────────────────────────
 
-const form     = document.querySelector('#search-form')
-const typeSel  = document.querySelector('#search-type')
-const input    = document.querySelector('#search-input')
-const fieldLbl = document.querySelector('#field-label')
-const out      = document.querySelector('#result')
+const tabsEl  = $('#tabs')
+const panelEl = $('#panel-resultados')
 
-// ─── FECHA ───────────────────────────────────────────────────────────────────
+const estado = { categorias: [], concursantes: [], resultados: [], activa: null }
 
-document.querySelector('#hero-fecha').textContent = `Publicación oficial · ${FECHA_EXAMEN}`
-document.querySelector('#exam-fecha').textContent = `Examen de becas — ${FECHA_EXAMEN}`
+async function cargar() {
+  const [cats, cons, res] = await Promise.all([
+    supabase.from('categorias').select('*').order('orden'),
+    supabase.from('concursantes').select('id, categoria_id, orden, nombre, institucion').order('orden', { nullsFirst: false }).order('nombre'),
+    supabase.rpc('resultados'),
+  ])
+  if (cats.error || cons.error || res.error) {
+    panelEl.innerHTML = mensaje('No pudimos cargar los resultados. Recarga la página en unos segundos.')
+    return
+  }
+  estado.categorias   = cats.data
+  estado.concursantes = cons.data
+  estado.resultados   = res.data
 
-// ─── ESTILOS POR TONO ────────────────────────────────────────────────────────
-
-const BECA_STYLE = {
-  full:  'bg-gold text-ink',
-  media: 'bg-teal text-paper',
-  none:  'bg-sand text-ink',
+  // Por defecto: la última categoría publicada; si no hay, la primera.
+  const publicadas = estado.categorias.filter((c) => c.publicada)
+    .sort((a, b) => new Date(b.publicada_en) - new Date(a.publicada_en))
+  if (!estado.activa || !estado.categorias.some((c) => c.id === estado.activa)) {
+    estado.activa = publicadas[0]?.id ?? estado.categorias[0]?.id
+  }
+  render()
 }
 
-const PLACEHOLDER = { codigo: 'Ej. MARC1344', nombre: 'Ej. Ruiz Mendoza' }
-const LABEL       = { codigo: 'Código',        nombre: 'Apellidos y nombres' }
+function render() {
+  tabsEl.innerHTML = estado.categorias.map((c) => {
+    const activa = c.id === estado.activa
+    return `
+      <button type="button" role="tab" aria-selected="${activa}" data-cat="${c.id}"
+              class="shrink-0 cursor-pointer rounded-sm border-[1.5px] px-5 py-3 text-[0.9375rem] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal
+                     ${activa ? 'border-ink bg-ink text-paper' : 'border-sand bg-white text-ink hover:border-ink'}">
+        ${esc(c.nombre)}
+        ${c.publicada ? `<span class="ml-1.5 inline-block h-2 w-2 rounded-full bg-gold align-middle" aria-label="publicada"></span>` : ''}
+      </button>`
+  }).join('')
 
-// ─── TEMPLATES ───────────────────────────────────────────────────────────────
+  $$('[data-cat]', tabsEl).forEach((b) => b.addEventListener('click', () => {
+    estado.activa = b.dataset.cat
+    render()
+  }))
 
-function fila(label, valor) {
+  const cat = estado.categorias.find((c) => c.id === estado.activa)
+  panelEl.innerHTML = cat?.publicada ? publicada(cat) : pendiente(cat)
+}
+
+function publicada(cat) {
+  const filas = estado.resultados.filter((r) => r.categoria_id === cat.id && r.puesto != null)
+  if (!filas.length) return mensaje('Esta categoría no tiene calificaciones registradas.')
+
+  const podio = filas.filter((r) => r.puesto <= 3)
+  const resto = filas.filter((r) => r.puesto > 3)
+
   return `
-    <div class="flex items-baseline justify-between gap-4 border-b border-sand-200 py-2.5 last:border-0">
-      <span class="text-[11px] uppercase tracking-[0.14em] text-slate shrink-0">${label}</span>
-      <span class="text-right text-[0.9375rem] font-semibold text-ink">${esc(valor)}</span>
+    <div class="lob-rise">
+      <ol class="grid gap-4 md:grid-cols-3 md:items-end">
+        ${podio.map(tarjetaPodio).join('')}
+      </ol>
+      ${resto.length ? `
+        <ol class="mt-8 border-t-[3px] border-ink">
+          ${resto.map((r) => `
+            <li class="flex items-center gap-4 border-b border-sand-200 py-3.5">
+              <span class="w-10 shrink-0 font-sans text-lg font-extrabold tabular-nums text-slate">${r.puesto}°</span>
+              <span class="min-w-0 flex-1">
+                <span class="block font-semibold leading-tight sm:text-lg">${esc(r.nombre)}</span>
+                ${r.institucion ? `<span class="block truncate font-sans text-sm text-slate">${esc(r.institucion)}</span>` : ''}
+              </span>
+              <span class="shrink-0 font-sans text-lg font-bold tabular-nums">${fmt(r.promedio)}</span>
+            </li>`).join('')}
+        </ol>` : ''}
+      <p class="mt-5 font-sans text-xs text-slate">Puntaje sobre ${TOTAL_MAX}. Publicado el ${new Date(cat.publicada_en).toLocaleString('es-PE', { dateStyle: 'long', timeStyle: 'short' })}.</p>
     </div>`
 }
 
-function tarjeta(a) {
+const PODIO = {
+  1: { orden: 'md:order-2', caja: 'bg-ink text-paper md:pb-12', medalla: 'bg-gold text-ink', etiqueta: 'Campeón', sub: 'text-mist' },
+  2: { orden: 'md:order-1', caja: 'bg-white', medalla: 'bg-mist text-ink', etiqueta: 'Segundo puesto', sub: 'text-slate' },
+  3: { orden: 'md:order-3', caja: 'bg-white', medalla: 'bg-sand text-ink', etiqueta: 'Tercer puesto', sub: 'text-slate' },
+}
+
+function tarjetaPodio(r) {
+  const s = PODIO[r.puesto]
   return `
-    <div class="lob-rise border-l-[6px] ${a.tono === 'none' ? 'border-sand' : 'border-gold'} bg-white p-6 sm:p-8">
+    <li class="${s.orden} ${s.caja} flex flex-col gap-3 border-t-[6px] border-gold p-6 sm:p-7">
+      <span class="flex items-center gap-3">
+        <span class="flex h-12 w-12 items-center justify-center rounded-full font-sans text-xl font-extrabold ${s.medalla}">${r.puesto}°</span>
+        <span class="font-sans text-[11px] font-semibold uppercase tracking-[0.2em] ${s.sub}">${s.etiqueta}</span>
+      </span>
+      <span class="text-[1.5rem] font-bold leading-tight sm:text-[1.75rem]">${esc(r.nombre)}</span>
+      ${r.institucion ? `<span class="font-sans text-sm ${s.sub}">${esc(r.institucion)}</span>` : ''}
+      <span class="mt-auto font-sans"><span class="text-3xl font-extrabold tabular-nums">${fmt(r.promedio)}</span> <span class="text-sm ${s.sub}">/ ${TOTAL_MAX}</span></span>
+    </li>`
+}
 
-      <!-- Nombre -->
-      <p class="text-xl font-bold leading-tight sm:text-[1.75rem]">${esc(a.nombre)}</p>
-
-      <!-- Filas de datos -->
-      <div class="mt-5 divide-y-0">
-        ${fila('DNI',              a.dni)}
-        ${fila('Código',           a.codigo)}
-        ${fila('Área',             a.area)}
-        ${fila('Carrera',          a.carrera)}
-        ${fila('Nota Vigesimal',   a.notaVigesimal)}
-        ${fila('Nota UNCP',        a.notaUncp)}
+function pendiente(cat) {
+  if (!cat) return mensaje('Pronto publicaremos los resultados.')
+  const lista = estado.concursantes.filter((c) => c.categoria_id === cat.id)
+  return `
+    <div class="lob-rise">
+      <div class="border-l-[6px] border-gold bg-white p-6 sm:p-8">
+        <p class="text-xl font-bold sm:text-2xl">Los resultados de ${esc(cat.nombre)} aún no se publican</p>
+        <p class="mt-2 font-sans text-[0.9375rem] text-slate">Aparecerán aquí automáticamente en cuanto el jurado termine de deliberar. No hace falta recargar la página.</p>
       </div>
-
-      <!-- Badge + mensaje -->
-      <div class="mt-5 flex flex-col gap-3">
-        <span class="inline-flex self-start rounded-sm px-4 py-2 text-[0.9375rem] font-bold sm:text-base ${BECA_STYLE[a.tono]}">${esc(a.beca)}</span>
-        <span class="max-w-[52ch] text-[0.9375rem] leading-relaxed text-ink/80">${esc(MENSAJES[a.tono])}</span>
-      </div>
-
+      ${lista.length ? `
+        <h3 class="mt-8 font-sans text-[11px] font-semibold uppercase tracking-[0.2em] text-slate">Concursantes · ${lista.length}</h3>
+        <ol class="mt-3 grid gap-x-8 sm:grid-cols-2">
+          ${lista.map((c) => `
+            <li class="flex items-baseline gap-3 border-b border-sand-200 py-2.5">
+              <span class="w-6 shrink-0 font-sans text-sm text-slate tabular-nums">${c.orden ?? ''}</span>
+              <span class="min-w-0"><span class="font-semibold">${esc(c.nombre)}</span>
+                ${c.institucion ? `<span class="font-sans text-sm text-slate"> · ${esc(c.institucion)}</span>` : ''}</span>
+            </li>`).join('')}
+        </ol>` : ''}
     </div>`
 }
 
-function sinResultado() {
-  return `<p class="text-base text-brick sm:text-[1.0625rem]">No encontramos ese dato. Revisá el código o escribí los apellidos completos.</p>`
+const mensaje = (t) => `<p class="py-16 text-center font-sans text-slate">${esc(t)}</p>`
+
+if (configurado) {
+  cargar()
+  // Cuando la organización publica o retira una categoría, la página se actualiza sola.
+  supabase.channel('publico-categorias')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'categorias' }, () => cargar())
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') { $('#estado-vivo').classList.replace('hidden', 'flex') }
+    })
+  // Respaldo por si el celular suspendió la conexión en segundo plano.
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) cargar() })
+} else {
+  panelEl.innerHTML = mensaje('Los resultados se publicarán aquí el día del concurso.')
 }
-
-// ─── SINCRONIZAR CAMPO ───────────────────────────────────────────────────────
-
-function sincronizarCampo() {
-  const t = typeSel.value
-  fieldLbl.textContent = LABEL[t]
-  input.placeholder    = PLACEHOLDER[t]
-  out.innerHTML        = ''
-}
-
-typeSel?.addEventListener('change', sincronizarCampo)
-input?.addEventListener('input', () => { out.innerHTML = '' })
-
-// ─── BÚSQUEDA (síncrona — datos en memoria) ──────────────────────────────────
-
-function buscar(tipo, query) {
-  const q = query.trim()
-  if (!q) { out.innerHTML = ''; return }
-
-  const alumno = tipo === 'codigo'
-    ? (buscarPorCodigo(q) ?? buscarPorDni(q))
-    : buscarPorNombre(q)
-
-  out.innerHTML = alumno ? tarjeta(alumno) : sinResultado()
-}
-
-form?.addEventListener('submit', (e) => {
-  e.preventDefault()
-  buscar(typeSel.value, input.value)
-})
 
 // ─── CARRUSEL ────────────────────────────────────────────────────────────────
 
-const carousel = document.querySelector('#carousel')
+const carousel = $('#carousel')
 
 if (carousel) {
-  const INTERVAL  = 4000   // ms entre avances automáticos
-  const PAUSE_MS  = 8000   // ms de pausa tras interacción manual
+  const INTERVAL = 4000
+  const PAUSE_MS = 8000
 
-  function cardStep() {
+  const cardStep = () => {
     const card = carousel.querySelector('figure')
     const gap  = parseFloat(getComputedStyle(carousel).columnGap) || 0
     return (card?.getBoundingClientRect().width ?? carousel.clientWidth) + gap
   }
 
-  function scrollNext() {
-    const step       = cardStep()
-    const maxScroll  = carousel.scrollWidth - carousel.clientWidth
-    // Si llegó al final, vuelve al inicio
-    if (carousel.scrollLeft + step >= maxScroll - 1) {
-      carousel.scrollTo({ left: 0, behavior: 'smooth' })
-    } else {
-      carousel.scrollBy({ left: step, behavior: 'smooth' })
-    }
+  const scrollNext = () => {
+    const step = cardStep()
+    const maxScroll = carousel.scrollWidth - carousel.clientWidth
+    if (carousel.scrollLeft + step >= maxScroll - 1) carousel.scrollTo({ left: 0, behavior: 'smooth' })
+    else carousel.scrollBy({ left: step, behavior: 'smooth' })
   }
 
-  // Auto-avance
   let timer = setInterval(scrollNext, INTERVAL)
-
-  function resetTimer() {
+  let resume
+  const pausar = () => {
     clearInterval(timer)
-    timer = setInterval(scrollNext, PAUSE_MS > INTERVAL ? PAUSE_MS : INTERVAL)
-    // Después de la pausa, vuelve al intervalo normal
-    setTimeout(() => {
-      clearInterval(timer)
-      timer = setInterval(scrollNext, INTERVAL)
-    }, PAUSE_MS)
+    clearTimeout(resume)
+    resume = setTimeout(() => { timer = setInterval(scrollNext, INTERVAL) }, PAUSE_MS)
   }
 
-  // Flechas manuales
-  document.querySelectorAll('[data-carousel]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const step = cardStep()
-      carousel.scrollBy({
-        left: btn.dataset.carousel === 'next' ? step : -step,
-        behavior: 'smooth',
-      })
-      resetTimer()
-    })
-  })
-
-  // Pausa cuando el usuario arrastra / toca el carrusel
-  carousel.addEventListener('pointerdown', resetTimer)
+  $$('[data-carousel]').forEach((btn) => btn.addEventListener('click', () => {
+    carousel.scrollBy({ left: btn.dataset.carousel === 'next' ? cardStep() : -cardStep(), behavior: 'smooth' })
+    pausar()
+  }))
+  carousel.addEventListener('pointerdown', pausar)
 }
