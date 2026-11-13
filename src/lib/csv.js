@@ -43,9 +43,16 @@ export function aConcursantes(encabezados, filas, categorias) {
   const col = Object.fromEntries(Object.entries(ALIAS).map(([k, alias]) =>
     [k, encabezados.findIndex((h) => alias.includes(h))]))
 
-  const mapaCat = new Map()
-  for (const c of categorias) { mapaCat.set(norm(c.id), c.id); mapaCat.set(norm(c.nombre), c.id) }
-  mapaCat.set('avanzado', 'avanzados')
+  // Acepta "Primaria A", "PRIMARIA A (1°, 2° y 3° Grado)", "primaria_a", "Avanzado", "MASTER"…
+  const claves = categorias.flatMap((c) => [
+    [norm(c.id).replace(/_/g, ' '), c.id],
+    [norm(c.nombre), c.id],
+    [norm(c.nombre).replace(/s$/, ''), c.id],
+  ]).sort((a, b) => b[0].length - a[0].length)
+  const mapaCat = { get: (txt) => {
+    const t = norm(txt).replace(/_/g, ' ')
+    return claves.find(([k]) => t === k || t.startsWith(k + ' ') || t.startsWith(k + '('))?.[1]
+  } }
 
   const errores = []
   if (col.categoria < 0) errores.push('No se encontró la columna "categoria".')

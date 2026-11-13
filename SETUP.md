@@ -6,15 +6,15 @@
 | `/jurado` | Jurados           | Calificar a cada concursante con la rúbrica de 100 puntos   |
 | `/admin`  | Organización      | Importar CSV, ver progreso en vivo, publicar por categoría  |
 
-## 1. Supabase (proyecto nuevo, plan gratis)
-1. Crear proyecto en supabase.com.
-2. **SQL Editor** → pegar y ejecutar `supabase/schema.sql`.
-3. **Authentication → Sign In / Providers → Email**: desactivar *Allow new users to sign up*
-   y *Confirm email*.
-4. **Authentication → Users → Add user** por cada jurado y el admin:
-   `jurado1@jurado.lobitos.test`, `jurado2@…`, `admin@…` con su contraseña (✔ Auto Confirm).
-5. Editar nombres en `supabase/usuarios.sql` y ejecutarlo.
-6. **Project Settings → API**: copiar URL y *publishable/anon key*.
+## 1. Supabase
+1. **SQL Editor** → pegar y ejecutar `supabase/privado/00_todo_en_uno.sql`
+   (esquema + 63 concursantes + 3 jurados y admin). Esa carpeta está fuera de git;
+   en el repo quedan `schema.sql` y `usuarios.sql` como plantilla.
+2. **Authentication → Sign In / Providers → Email**: desactivar *Allow new users to sign up*.
+3. **Project Settings → API**: copiar URL y *publishable/anon key*.
+
+Credenciales de los jurados: `supabase/privado/CREDENCIALES.txt`.
+Para cambiar una contraseña: editar `supabase/privado/usuarios.sql` y volver a ejecutarlo.
 
 ## 2. Local
 ```

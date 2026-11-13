@@ -7,16 +7,18 @@
 create table public.categorias (
   id            text primary key,
   nombre        text not null,
+  descripcion   text,
   orden         int  not null,
   publicada     boolean not null default false,
   publicada_en  timestamptz
 );
 
-insert into public.categorias (id, nombre, orden) values
-  ('primaria',   'Primaria',   1),
-  ('secundaria', 'Secundaria', 2),
-  ('master',     'Máster',     3),
-  ('avanzados',  'Avanzados',  4);
+insert into public.categorias (id, nombre, descripcion, orden) values
+  ('primaria_a', 'Primaria A', '1°, 2° y 3° grado', 1),
+  ('primaria_b', 'Primaria B', '4°, 5° y 6° grado', 2),
+  ('secundaria', 'Secundaria', null,                3),
+  ('master',     'Máster',     null,                4),
+  ('avanzados',  'Avanzados',  null,                5);
 
 -- ─── PERFILES (jurados y administradores) ───────────────────────────────────
 -- Solo quien tenga una fila aquí puede calificar. Crear el usuario en

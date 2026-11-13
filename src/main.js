@@ -57,6 +57,7 @@ function render() {
                      ${activa ? 'border-ink bg-ink text-paper' : 'border-sand bg-white text-ink hover:border-ink'}">
         ${esc(c.nombre)}
         ${c.publicada ? `<span class="ml-1.5 inline-block h-2 w-2 rounded-full bg-gold align-middle" aria-label="publicada"></span>` : ''}
+        ${c.descripcion ? `<span class="block text-xs font-normal ${activa ? 'text-mist' : 'text-slate'}">${esc(c.descripcion)}</span>` : ''}
       </button>`
   }).join('')
 

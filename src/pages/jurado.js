@@ -145,7 +145,8 @@ function panel() {
     <form id="calif-form" class="lob-rise bg-white p-6 sm:p-8" novalidate>
       <p class="font-sans text-[11px] uppercase tracking-[0.18em] text-teal">${esc(catActual()?.nombre)} · Nº ${c.orden ?? '—'}</p>
       <h2 class="mt-1 text-2xl font-bold leading-tight sm:text-[2rem]">${esc(c.nombre)}</h2>
-      ${c.poema || c.institucion ? `<p class="mt-1 font-sans text-sm text-slate">${[c.poema && `«${esc(c.poema)}»`, esc(c.institucion)].filter(Boolean).join(' · ')}</p>` : ''}
+      ${c.institucion ? `<p class="mt-1 font-sans text-sm text-slate">${esc(c.institucion)}</p>` : ''}
+      ${c.poema ? `<p class="mt-2 font-sans text-sm"><span class="text-[11px] uppercase tracking-[0.14em] text-slate">Poema</span> <span class="font-semibold">${esc(c.poema)}</span></p>` : ''}
 
       ${bloqueado ? `<p class="mt-4 rounded-sm bg-gold/30 px-4 py-3 font-sans text-sm">Esta categoría ya fue publicada. Las calificaciones están cerradas.</p>` : ''}
 
