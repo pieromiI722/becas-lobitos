@@ -11,6 +11,7 @@ export default defineConfig({
         main:   resolve(import.meta.dirname, "index.html"),
         jurado: resolve(import.meta.dirname, "jurado/index.html"),
         admin:  resolve(import.meta.dirname, "admin/index.html"),
+        sorteo: resolve(import.meta.dirname, "sorteo/index.html"),
       },
     },
   },

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Sorteo del orden de presentación — Concurso de Declamación</title>
+<link rel="icon" href="/img/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400..800;1,400..800&display=swap" rel="stylesheet">
+</head>
+<!-- Pantalla pensada para proyectar en el auditorio (16:9). Solo la organización. -->
+<body class="lob-sala relative min-h-dvh bg-[#020f12] font-sans text-paper antialiased">
+  <header class="relative z-10 border-b border-paper/10">
+    <div class="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-5 py-3 sm:px-8">
+      <a href="/admin/" class="flex items-center gap-3">
+        <span class="rounded-sm bg-paper p-1"><img src="/img/logo.png" alt="Academia Lobitos" class="h-8 w-8 object-contain mix-blend-multiply"></span>
+        <span class="flex flex-col leading-tight">
+          <span class="text-base font-bold tracking-wide">Sorteo del orden de presentación</span>
+          <span class="text-[11px] uppercase tracking-[0.18em] text-gold">II Concurso Nacional de Declamación</span>
+        </span>
+      </a>
+      <div class="flex items-center gap-2">
+        <button id="btn-pantalla" type="button" hidden title="Pantalla completa (F)"
+                class="cursor-pointer rounded-sm border-[1.5px] border-paper/30 px-3 py-2 text-sm font-semibold hover:border-gold hover:text-gold">⛶ Pantalla completa</button>
+        <button id="btn-salir" type="button" hidden
+                class="cursor-pointer rounded-sm border-[1.5px] border-paper/30 px-3 py-2 text-sm font-semibold hover:border-gold hover:text-gold">Salir</button>
+      </div>
+    </div>
+  </header>
+  <main id="app" class="relative"></main>
+  <span id="jurado-nombre" hidden></span>
+  <script type="module" src="/src/pages/sorteo.js"></script>
+</body>
+</html>

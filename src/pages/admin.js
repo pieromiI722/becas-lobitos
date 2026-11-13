@@ -71,11 +71,17 @@ function render() {
             ${empatados.size ? `<p class="mt-2 inline-flex items-center gap-2 rounded-sm bg-brick/10 px-3 py-1.5 font-sans text-sm font-semibold text-brick">
               ${empatados.size} concursantes con el mismo promedio${cat.publicada ? '' : ' · ajusta el promedio final para desempatar'}</p>` : ''}
           </div>
+          <div class="flex flex-wrap items-center gap-3">
+          <a href="/sorteo/" target="_blank" rel="noopener" title="Abrir la pantalla del sorteo para proyectar"
+             class="inline-flex min-h-[48px] items-center gap-2 rounded-sm border-[1.5px] border-ink px-5 py-3 font-sans text-base font-bold transition-colors hover:bg-ink hover:text-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal">
+            Sorteo ${cat.sorteado_en ? `<span class="text-xs font-semibold text-teal">✓ nº ${cat.sorteo_intentos}</span>` : ''} ↗
+          </a>
           <button id="btn-publicar" type="button" ${filas.length ? '' : 'disabled'}
                   class="min-h-[48px] cursor-pointer rounded-sm px-6 py-3 font-sans text-base font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal disabled:cursor-not-allowed disabled:opacity-50
                          ${cat.publicada ? 'border-[1.5px] border-brick text-brick hover:bg-brick hover:text-paper' : 'bg-gold text-ink hover:bg-gold-600'}">
             ${cat.publicada ? 'Retirar publicación' : 'Publicar resultados'}
           </button>
+          </div>
         </div>
 
         ${filas.length ? tabla(filas, cat, empatados) : `<p class="mt-6 font-sans text-slate">Sin concursantes. Impórtalos abajo.</p>`}

@@ -159,32 +159,106 @@
     </div>
   </section>
 
-  <!-- ============ CARRUSEL ============ -->
-  <section class="border-t-[3px] border-ink py-12 sm:py-14">
-    <div class="mx-auto flex max-w-6xl items-baseline justify-between gap-4 px-5 pb-4 sm:px-8">
-      <h2 class="text-xl font-bold sm:text-[1.625rem]">La academia por dentro</h2>
-      <div class="hidden gap-2 sm:flex">
-        <button type="button" data-carousel="prev" aria-label="Foto anterior"
-                class="h-11 w-11 cursor-pointer rounded-sm border-[1.5px] border-ink text-lg text-ink transition-colors hover:bg-ink hover:text-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal">←</button>
-        <button type="button" data-carousel="next" aria-label="Foto siguiente"
-                class="h-11 w-11 cursor-pointer rounded-sm border-[1.5px] border-ink text-lg text-ink transition-colors hover:bg-ink hover:text-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal">→</button>
+  <!-- ============ GALERÍA ============ -->
+  <!-- Tira continua: main.js duplica los elementos para el bucle infinito y abre el visor. -->
+  <section id="galeria" aria-labelledby="galeria-titulo" class="overflow-hidden border-t-[3px] border-ink bg-paper py-14 sm:py-20">
+    <div class="mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-x-8 gap-y-3 px-5 sm:px-8">
+      <div>
+        <span class="text-[11px] font-semibold uppercase tracking-[0.24em] text-teal sm:text-xs">La academia por dentro</span>
+        <h2 id="galeria-titulo" class="mt-1 text-[2rem] font-extrabold leading-none tracking-[-0.03em] sm:text-[2.75rem]">Donde la palabra se entrena</h2>
       </div>
+      <p class="max-w-[40ch] text-[0.9375rem] text-slate">Clases, escenarios y logros de nuestros lobitos. Toca una foto para verla en grande.</p>
     </div>
 
-    <div id="carousel" class="lob-scroller mx-auto flex max-w-6xl snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth px-5 pb-2 sm:gap-5 sm:px-8">
-      <figure class="relative h-56 w-[84vw] shrink-0 snap-start overflow-hidden rounded-sm bg-sand-200 sm:h-80 md:h-[340px] md:w-[534px]"><img src="/img/lobitos1.jpg" alt="Academia Lobitos 1" loading="lazy" class="h-full w-full object-cover"></figure>
-      <figure class="relative h-56 w-[84vw] shrink-0 snap-start overflow-hidden rounded-sm bg-sand-200 sm:h-80 md:h-[340px] md:w-[534px]"><img src="/img/lobitos2.jpg" alt="Academia Lobitos 2" loading="lazy" class="h-full w-full object-cover"></figure>
-      <figure class="relative h-56 w-[84vw] shrink-0 snap-start overflow-hidden rounded-sm bg-sand-200 sm:h-80 md:h-[340px] md:w-[534px]"><img src="/img/lobitos3.jpg" alt="Academia Lobitos 3" loading="lazy" class="h-full w-full object-cover"></figure>
-      <figure class="relative h-56 w-[84vw] shrink-0 snap-start overflow-hidden rounded-sm bg-sand-200 sm:h-80 md:h-[340px] md:w-[534px]"><img src="/img/lobitos4.jpg" alt="Academia Lobitos 4" loading="lazy" class="h-full w-full object-cover"></figure>
-      <figure class="relative h-56 w-[84vw] shrink-0 snap-start overflow-hidden rounded-sm bg-sand-200 sm:h-80 md:h-[340px] md:w-[534px]"><img src="/img/lobitos5.jpg" alt="Academia Lobitos 5" loading="lazy" class="h-full w-full object-cover"></figure>
-      <figure class="relative h-56 w-[84vw] shrink-0 snap-start overflow-hidden rounded-sm bg-sand-200 sm:h-80 md:h-[340px] md:w-[534px]"><img src="/img/lobitos6.jpg" alt="Academia Lobitos 6" loading="lazy" class="h-full w-full object-cover"></figure>
-    </div>
-
-    <div class="mx-auto flex max-w-6xl justify-center gap-2 px-5 pt-4 sm:hidden">
-      <button type="button" data-carousel="prev" aria-label="Foto anterior" class="h-11 w-11 cursor-pointer rounded-sm border-[1.5px] border-ink text-lg text-ink">←</button>
-      <button type="button" data-carousel="next" aria-label="Foto siguiente" class="h-11 w-11 cursor-pointer rounded-sm border-[1.5px] border-ink text-lg text-ink">→</button>
+    <div class="lob-marquee mt-10 pb-8">
+      <ul class="lob-marquee-pista flex w-max">
+        <li class="lob-foto shrink-0">
+          <button type="button" data-foto="0" data-grande="/img/lobitos1-l.webp" aria-label="Ver en grande: Clase de guitarra con estudiantes de la academia"
+                  class="group relative block h-60 cursor-zoom-in overflow-hidden rounded-sm bg-sand-200 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal sm:h-72 md:h-[340px]"
+                  style="aspect-ratio:428/760">
+            <picture>
+              <source srcset="/img/lobitos1-m.webp" type="image/webp">
+              <img src="/img/lobitos1.jpg" alt="Clase de guitarra con estudiantes de la academia" width="428" height="760" loading="lazy" decoding="async"
+                   class="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06]">
+            </picture>
+            <span class="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/85 via-ink/30 to-transparent px-4 pt-10 pb-3 text-left text-sm font-semibold text-paper opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100">Clase de guitarra con estudiantes de la academia</span>
+          </button>
+        </li>
+        <li class="lob-foto shrink-0">
+          <button type="button" data-foto="1" data-grande="/img/lobitos2-l.webp" aria-label="Ver en grande: Estudiante recibe su diploma en el escenario del aniversario"
+                  class="group relative block h-60 cursor-zoom-in overflow-hidden rounded-sm bg-sand-200 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal sm:h-72 md:h-[340px]"
+                  style="aspect-ratio:570/760">
+            <picture>
+              <source srcset="/img/lobitos2-m.webp" type="image/webp">
+              <img src="/img/lobitos2.jpg" alt="Estudiante recibe su diploma en el escenario del aniversario" width="570" height="760" loading="lazy" decoding="async"
+                   class="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06]">
+            </picture>
+            <span class="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/85 via-ink/30 to-transparent px-4 pt-10 pb-3 text-left text-sm font-semibold text-paper opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100">Estudiante recibe su diploma en el escenario del aniversario</span>
+          </button>
+        </li>
+        <li class="lob-foto shrink-0">
+          <button type="button" data-foto="2" data-grande="/img/lobitos3-l.webp" aria-label="Ver en grande: Estudiante premiado junto a su familia y su docente"
+                  class="group relative block h-60 cursor-zoom-in overflow-hidden rounded-sm bg-sand-200 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal sm:h-72 md:h-[340px]"
+                  style="aspect-ratio:911/760">
+            <picture>
+              <source srcset="/img/lobitos3-m.webp" type="image/webp">
+              <img src="/img/lobitos3.jpg" alt="Estudiante premiado junto a su familia y su docente" width="911" height="760" loading="lazy" decoding="async"
+                   class="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06]">
+            </picture>
+            <span class="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/85 via-ink/30 to-transparent px-4 pt-10 pb-3 text-left text-sm font-semibold text-paper opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100">Estudiante premiado junto a su familia y su docente</span>
+          </button>
+        </li>
+        <li class="lob-foto shrink-0">
+          <button type="button" data-foto="3" data-grande="/img/lobitos4-l.webp" aria-label="Ver en grande: Docente y estudiante de la Academia Lobitos"
+                  class="group relative block h-60 cursor-zoom-in overflow-hidden rounded-sm bg-sand-200 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal sm:h-72 md:h-[340px]"
+                  style="aspect-ratio:819/760">
+            <picture>
+              <source srcset="/img/lobitos4-m.webp" type="image/webp">
+              <img src="/img/lobitos4.jpg" alt="Docente y estudiante de la Academia Lobitos" width="819" height="760" loading="lazy" decoding="async"
+                   class="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06]">
+            </picture>
+            <span class="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/85 via-ink/30 to-transparent px-4 pt-10 pb-3 text-left text-sm font-semibold text-paper opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100">Docente y estudiante de la Academia Lobitos</span>
+          </button>
+        </li>
+        <li class="lob-foto shrink-0">
+          <button type="button" data-foto="4" data-grande="/img/lobitos5-l.webp" aria-label="Ver en grande: Estudiantes ganadores con su premio"
+                  class="group relative block h-60 cursor-zoom-in overflow-hidden rounded-sm bg-sand-200 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal sm:h-72 md:h-[340px]"
+                  style="aspect-ratio:1110/760">
+            <picture>
+              <source srcset="/img/lobitos5-m.webp" type="image/webp">
+              <img src="/img/lobitos5.jpg" alt="Estudiantes ganadores con su premio" width="1110" height="760" loading="lazy" decoding="async"
+                   class="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06]">
+            </picture>
+            <span class="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/85 via-ink/30 to-transparent px-4 pt-10 pb-3 text-left text-sm font-semibold text-paper opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100">Estudiantes ganadores con su premio</span>
+          </button>
+        </li>
+        <li class="lob-foto shrink-0">
+          <button type="button" data-foto="5" data-grande="/img/lobitos6-l.webp" aria-label="Ver en grande: Niñas reconocidas con diplomas en el escenario"
+                  class="group relative block h-60 cursor-zoom-in overflow-hidden rounded-sm bg-sand-200 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal sm:h-72 md:h-[340px]"
+                  style="aspect-ratio:1013/760">
+            <picture>
+              <source srcset="/img/lobitos6-m.webp" type="image/webp">
+              <img src="/img/lobitos6.jpg" alt="Niñas reconocidas con diplomas en el escenario" width="1013" height="760" loading="lazy" decoding="async"
+                   class="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06]">
+            </picture>
+            <span class="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/85 via-ink/30 to-transparent px-4 pt-10 pb-3 text-left text-sm font-semibold text-paper opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100">Niñas reconocidas con diplomas en el escenario</span>
+          </button>
+        </li>
+      </ul>
     </div>
   </section>
+
+  <!-- Visor de fotos -->
+  <dialog id="visor" aria-label="Foto ampliada" class="lob-visor m-auto max-h-none max-w-none bg-transparent p-0 text-paper backdrop:bg-[#020f12]/90">
+    <figure class="relative flex flex-col items-center gap-3">
+      <img id="visor-img" alt="" class="max-h-[80dvh] max-w-[92vw] rounded-sm object-contain shadow-2xl">
+      <figcaption id="visor-txt" class="max-w-[60ch] px-4 text-center text-sm text-mist"></figcaption>
+    </figure>
+    <button type="button" data-visor="cerrar" aria-label="Cerrar" class="fixed top-4 right-4 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full bg-paper/10 text-2xl hover:bg-paper/20 focus-visible:outline-2 focus-visible:outline-gold">×</button>
+    <button type="button" data-visor="-1" aria-label="Foto anterior" class="fixed top-1/2 left-3 flex h-12 w-12 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-paper/10 text-xl hover:bg-paper/20 focus-visible:outline-2 focus-visible:outline-gold sm:left-6">←</button>
+    <button type="button" data-visor="1" aria-label="Foto siguiente" class="fixed top-1/2 right-3 flex h-12 w-12 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-paper/10 text-xl hover:bg-paper/20 focus-visible:outline-2 focus-visible:outline-gold sm:right-6">→</button>
+    <p id="visor-n" class="fixed bottom-4 left-1/2 -translate-x-1/2 text-xs tracking-[0.2em] text-mist/70"></p>
+  </dialog>
 
   <!-- ============ FOOTER ============ -->
   <footer class="bg-ink text-paper">

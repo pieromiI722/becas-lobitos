@@ -2,8 +2,8 @@ import './style.css'
 import { supabase, configurado } from './lib/supabase.js'
 import { CRITERIOS, TOTAL_MAX } from './lib/rubrica.js'
 import { esc, $, $$, norm } from './lib/ui.js'
+import { confeti, reducido } from './lib/efectos.js'
 
-const reducido = matchMedia('(prefers-reduced-motion: reduce)').matches
 
 // ─── RÚBRICA (sección "Cómo califica el jurado") ─────────────────────────────
 
@@ -33,21 +33,25 @@ const estado = {
   resaltado: null,          // id de concursante elegido en el buscador
   revelar: null,            // categoría que debe abrir el telón en el próximo render
   vistas: new Set(),        // categorías cuyo telón ya se abrió en esta visita
+  turnos: new Map(),        // concursante_id → turno (solo los ya revelados en el sorteo)
+  turnosVistos: null,       // ids ya mostrados; los nuevos entran con animación
 }
 
 const catPorId = (id) => estado.categorias.find((c) => c.id === id)
 const resultadosDe = (id) => estado.resultados.filter((r) => r.categoria_id === id && r.puesto != null)
 const concursantesDe = (id) => estado.concursantes.filter((c) => c.categoria_id === id)
+const sorteoEnVivo = (cat) => Boolean(cat.sorteado_en) && concursantesDe(cat.id).some((c) => !estado.turnos.has(c.id))
 
 // ─── DATOS ───────────────────────────────────────────────────────────────────
 
 async function cargar() {
   const antes = new Map(estado.categorias.map((c) => [c.id, c.publicada]))
-  const [cats, cons, res] = await Promise.all([
+  const [cats, cons, res, orden] = await Promise.all([
     supabase.from('categorias').select('*').order('orden'),
     supabase.from('concursantes').select('id, categoria_id, orden, nombre, institucion, poema')
       .order('orden', { nullsFirst: false }).order('nombre'),
     supabase.rpc('resultados'),
+    supabase.rpc('orden_presentacion'),
   ])
   if (cats.error || cons.error || res.error) {
     escenario.innerHTML = mensaje('No pudimos cargar los resultados. Recarga la página en unos segundos.')
@@ -56,6 +60,7 @@ async function cargar() {
   estado.categorias   = cats.data
   estado.concursantes = cons.data
   estado.resultados   = res.data
+  estado.turnos       = new Map((orden.error ? [] : orden.data).map((t) => [t.concursante_id, t.turno]))
 
   // ¿Se acaba de publicar una categoría mientras la página estaba abierta? → telón.
   const recien = antes.size
@@ -96,7 +101,7 @@ function render() {
     estado.vistas.add(cat.id)
     estado.revelar = null
     escenario.innerHTML = vistaPublicada(cat, abrir)
-    if (abrir) confeti($('#podio-escena'))
+    if (abrir) confeti($('#podio-escena'), { retraso: 1.8 })
     $('#btn-compartir')?.addEventListener('click', () => compartir(cat))
   } else {
     escenario.innerHTML = vistaPendiente(cat)
@@ -132,7 +137,12 @@ function tarjetaCategoria(c) {
         ${c.publicada && campeones.length
           ? `<span class="block text-[10px] font-semibold uppercase tracking-[0.18em] ${activa ? 'text-teal' : 'text-gold'}">Campeón</span>
              <span class="block truncate font-bold">${esc(campeones.map((r) => r.nombre).join(' · '))}</span>`
-          : `<span class="flex items-center gap-2 ${activa ? 'text-slate' : 'text-mist'}">
+          : sorteoEnVivo(c)
+            ? `<span class="flex items-center gap-2 font-semibold ${activa ? 'text-teal' : 'text-gold'}">
+                 <span class="relative flex h-2 w-2"><span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-current opacity-70"></span><span class="relative inline-flex h-2 w-2 rounded-full bg-current"></span></span>
+                 Sorteo en vivo
+               </span>`
+            : `<span class="flex items-center gap-2 ${activa ? 'text-slate' : 'text-mist'}">
                <span class="lob-dots flex gap-0.5" aria-hidden="true"><span class="h-1.5 w-1.5 rounded-full bg-current"></span><span class="h-1.5 w-1.5 rounded-full bg-current"></span><span class="h-1.5 w-1.5 rounded-full bg-current"></span></span>
                En deliberación
              </span>`}
@@ -230,28 +240,55 @@ function clasificacion(filas) {
 
 function vistaPendiente(cat) {
   const lista = concursantesDe(cat.id)
+  const sorteados = lista.filter((c) => estado.turnos.has(c.id))
+    .sort((a, b) => estado.turnos.get(a.id) - estado.turnos.get(b.id))
+  const porSortear = lista.filter((c) => !estado.turnos.has(c.id))
+  const enVivo = Boolean(cat.sorteado_en) && porSortear.length > 0
+
+  // Los turnos que aparecen por primera vez entran con animación.
+  const nuevos = new Set(estado.turnosVistos ? sorteados.filter((c) => !estado.turnosVistos.has(c.id)).map((c) => c.id) : [])
+  estado.turnosVistos = new Set([...(estado.turnosVistos ?? []), ...sorteados.map((c) => c.id)])
+
+  const cabecera = enVivo
+    ? `<span class="relative flex h-3 w-3"><span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold opacity-70"></span><span class="relative inline-flex h-3 w-3 rounded-full bg-gold"></span></span>
+       <p class="text-2xl font-extrabold tracking-tight sm:text-3xl">Sorteo en vivo</p>
+       <p class="max-w-[46ch] text-[0.9375rem] text-mist">Se está sorteando el orden de presentación de ${esc(cat.nombre)}. Cada turno aparece aquí en cuanto se revela en el auditorio.</p>`
+    : `<span class="lob-dots flex gap-1.5 text-gold" aria-hidden="true"><span class="h-2.5 w-2.5 rounded-full bg-current"></span><span class="h-2.5 w-2.5 rounded-full bg-current"></span><span class="h-2.5 w-2.5 rounded-full bg-current"></span></span>
+       <p class="text-2xl font-extrabold tracking-tight sm:text-3xl">El jurado está deliberando</p>
+       <p class="max-w-[46ch] text-[0.9375rem] text-mist">Cuando se publiquen los resultados de ${esc(cat.nombre)}, el telón se abrirá aquí mismo. No hace falta recargar.</p>`
+
+  const fila = (c, turno) => `
+    <li data-fila="${c.id}" class="${nuevos.has(c.id) ? 'lob-llegada' : ''} flex gap-4 border-b border-paper/10 py-3">
+      ${turno
+        ? `<span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold text-sm font-extrabold tabular-nums text-ink">${turno}</span>`
+        : `<span class="w-7 shrink-0 pt-0.5 text-sm font-bold tabular-nums text-mist/70">${c.orden ?? ''}</span>`}
+      <span class="min-w-0">
+        <span class="block font-bold leading-tight">${esc(c.nombre)}</span>
+        ${c.poema ? `<span class="mt-0.5 block text-sm italic text-gold/90">${esc(c.poema)}</span>` : ''}
+        ${c.institucion ? `<span class="block truncate text-xs text-mist/70">${esc(c.institucion)}</span>` : ''}
+      </span>
+    </li>`
+
   return `
-    <div class="relative overflow-hidden rounded-sm border border-paper/10">
+    <div class="relative overflow-hidden rounded-sm border ${enVivo ? 'border-gold/50' : 'border-paper/10'}">
       <div class="lob-telon absolute inset-0" aria-hidden="true"></div>
-      <div class="relative flex min-h-[220px] flex-col items-center justify-center gap-3 px-6 py-12 text-center">
-        <span class="lob-dots flex gap-1.5 text-gold" aria-hidden="true"><span class="h-2.5 w-2.5 rounded-full bg-current"></span><span class="h-2.5 w-2.5 rounded-full bg-current"></span><span class="h-2.5 w-2.5 rounded-full bg-current"></span></span>
-        <p class="text-2xl font-extrabold tracking-tight sm:text-3xl">El jurado está deliberando</p>
-        <p class="max-w-[46ch] text-[0.9375rem] text-mist">Cuando se publiquen los resultados de ${esc(cat.nombre)}, el telón se abrirá aquí mismo. No hace falta recargar.</p>
-      </div>
+      <div class="relative flex min-h-[220px] flex-col items-center justify-center gap-3 px-6 py-12 text-center">${cabecera}</div>
     </div>
-    ${lista.length ? `
+    ${sorteados.length ? `
       <div class="mt-8">
-        <h3 class="text-[11px] font-semibold uppercase tracking-[0.24em] text-mist">Concursantes · ${lista.length}</h3>
+        <h3 class="flex items-baseline justify-between gap-4 text-[11px] font-semibold uppercase tracking-[0.24em] text-mist">
+          <span>Orden de presentación${enVivo ? ` · ${sorteados.length} de ${lista.length}` : ''}</span>
+          ${cat.sorteo_intentos ? `<span class="normal-case tracking-normal text-mist/60">Sorteo nº ${cat.sorteo_intentos}</span>` : ''}
+        </h3>
         <ol class="mt-3 grid gap-x-10 border-t border-paper/10 md:grid-cols-2">
-          ${lista.map((c) => `
-            <li data-fila="${c.id}" class="flex gap-4 border-b border-paper/10 py-3">
-              <span class="w-7 shrink-0 pt-0.5 text-sm font-bold tabular-nums text-mist/70">${c.orden ?? ''}</span>
-              <span class="min-w-0">
-                <span class="block font-bold leading-tight">${esc(c.nombre)}</span>
-                ${c.poema ? `<span class="mt-0.5 block text-sm italic text-gold/90">${esc(c.poema)}</span>` : ''}
-                ${c.institucion ? `<span class="block truncate text-xs text-mist/70">${esc(c.institucion)}</span>` : ''}
-              </span>
-            </li>`).join('')}
+          ${sorteados.map((c) => fila(c, estado.turnos.get(c.id))).join('')}
+        </ol>
+      </div>` : ''}
+    ${porSortear.length ? `
+      <div class="mt-8 ${sorteados.length ? 'opacity-60' : ''}">
+        <h3 class="text-[11px] font-semibold uppercase tracking-[0.24em] text-mist">${sorteados.length ? `Por sortear · ${porSortear.length}` : `Concursantes · ${lista.length}`}</h3>
+        <ol class="mt-3 grid gap-x-10 border-t border-paper/10 md:grid-cols-2">
+          ${porSortear.map((c) => fila(c, null)).join('')}
         </ol>
       </div>` : ''}`
 }
@@ -265,25 +302,6 @@ function iniciales(nombre) {
 }
 
 // ─── EFECTOS ─────────────────────────────────────────────────────────────────
-
-function confeti(contenedor) {
-  if (!contenedor || reducido) return
-  const colores = ['#f7c548', '#fbf8f1', '#0e6c76', '#cfe0e2', '#e0ae2f']
-  const frag = document.createDocumentFragment()
-  for (let i = 0; i < 70; i++) {
-    const s = document.createElement('span')
-    s.className = 'lob-confeti'
-    s.style.left = `${Math.random() * 100}%`
-    s.style.background = colores[i % colores.length]
-    s.style.animationDelay = `${1.8 + Math.random() * 0.9}s`
-    s.style.setProperty('--dx', `${(Math.random() - 0.5) * 160}px`)
-    s.style.setProperty('--rot', `${(Math.random() - 0.5) * 900}deg`)
-    if (i % 3 === 0) { s.style.width = '6px'; s.style.height = '6px'; s.style.borderRadius = '50%' }
-    frag.appendChild(s)
-  }
-  contenedor.appendChild(frag)
-  setTimeout(() => $$('.lob-confeti', contenedor).forEach((s) => s.remove()), 6000)
-}
 
 function anunciar(cat) {
   const aviso = document.createElement('a')
@@ -380,38 +398,64 @@ if (configurado) {
   inputBuscar.disabled = true
 }
 
-// ─── CARRUSEL ────────────────────────────────────────────────────────────────
+// ─── GALERÍA: tira continua + visor ──────────────────────────────────────────
 
-const carousel = $('#carousel')
+const pista = $('.lob-marquee-pista')
 
-if (carousel) {
-  const INTERVAL = 4000
-  const PAUSE_MS = 8000
+if (pista) {
+  const originales = $$('.lob-foto', pista)
 
-  const cardStep = () => {
-    const card = carousel.querySelector('figure')
-    const gap  = parseFloat(getComputedStyle(carousel).columnGap) || 0
-    return (card?.getBoundingClientRect().width ?? carousel.clientWidth) + gap
+  // Segunda copia para el bucle infinito (oculta a lectores de pantalla y al teclado).
+  if (!reducido) {
+    originales.forEach((li) => {
+      const copia = li.cloneNode(true)
+      copia.setAttribute('aria-hidden', 'true')
+      copia.querySelector('button').tabIndex = -1
+      copia.querySelector('img').loading = 'eager'
+      pista.appendChild(copia)
+    })
+    // Velocidad constante (~40 px/s) sin importar cuántas fotos haya.
+    const ajustarVelocidad = () => pista.style.setProperty('--duracion', `${Math.round(pista.scrollWidth / 2 / 40)}s`)
+    ajustarVelocidad()
+    addEventListener('resize', ajustarVelocidad)
   }
 
-  const scrollNext = () => {
-    const step = cardStep()
-    const maxScroll = carousel.scrollWidth - carousel.clientWidth
-    if (carousel.scrollLeft + step >= maxScroll - 1) carousel.scrollTo({ left: 0, behavior: 'smooth' })
-    else carousel.scrollBy({ left: step, behavior: 'smooth' })
+  // Visor
+  const visor = $('#visor')
+  const img = $('#visor-img')
+  let actual = 0
+  const mostrar = (i) => {
+    actual = (i + originales.length) % originales.length
+    const btn = $('button', originales[actual])
+    const alt = $('img', btn).alt
+    img.src = btn.dataset.grande
+    img.alt = alt
+    $('#visor-txt').textContent = alt
+    $('#visor-n').textContent = `${actual + 1} / ${originales.length}`
   }
 
-  let timer = setInterval(scrollNext, INTERVAL)
-  let resume
-  const pausar = () => {
-    clearInterval(timer)
-    clearTimeout(resume)
-    resume = setTimeout(() => { timer = setInterval(scrollNext, INTERVAL) }, PAUSE_MS)
-  }
-
-  $$('[data-carousel]').forEach((btn) => btn.addEventListener('click', () => {
-    carousel.scrollBy({ left: btn.dataset.carousel === 'next' ? cardStep() : -cardStep(), behavior: 'smooth' })
-    pausar()
-  }))
-  carousel.addEventListener('pointerdown', pausar)
+  pista.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-foto]')
+    if (!btn) return
+    mostrar(Number(btn.dataset.foto))
+    visor.showModal()
+  })
+  visor.addEventListener('click', (e) => {
+    const accion = e.target.closest('[data-visor]')?.dataset.visor
+    if (accion === 'cerrar' || e.target === visor) visor.close()
+    else if (accion) mostrar(actual + Number(accion))
+  })
+  visor.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight') mostrar(actual + 1)
+    if (e.key === 'ArrowLeft') mostrar(actual - 1)
+  })
+  // Deslizar con el dedo en el visor
+  let x0 = null
+  visor.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX }, { passive: true })
+  visor.addEventListener('touchend', (e) => {
+    if (x0 == null) return
+    const dx = e.changedTouches[0].clientX - x0
+    if (Math.abs(dx) > 50) mostrar(actual + (dx < 0 ? 1 : -1))
+    x0 = null
+  })
 }

@@ -138,8 +138,62 @@ html { scroll-behavior: smooth; }
 @keyframes lob-resaltar { 0%, 60% { background: rgb(247 197 72 / 0.28); } 100% { background: transparent; } }
 .lob-resaltado { animation: lob-resaltar 2.8s ease-out; }
 
+/* ─── Sorteo ─────────────────────────────────────────────────────────────── */
+/* Rodillo: se desvanece arriba y abajo, como la ventana de una tragamonedas */
+.lob-rodillo {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 30%, #000 70%, transparent 100%);
+          mask-image: linear-gradient(to bottom, transparent 0%, #000 30%, #000 70%, transparent 100%);
+}
+.lob-rodillo-fila {
+  font-size: clamp(1.6rem, 3vw, 2.9rem);
+  line-height: 1.15;
+}
+/* Destello del escenario al revelar */
+@keyframes lob-destello {
+  0%   { box-shadow: inset 0 0 0 0 rgb(247 197 72 / 0); }
+  25%  { box-shadow: inset 0 0 120px 10px rgb(247 197 72 / 0.35); }
+  100% { box-shadow: inset 0 0 0 0 rgb(247 197 72 / 0); }
+}
+.lob-destello { animation: lob-destello 1.2s ease-out; }
+/* Llegada a la lista */
+@keyframes lob-llegada {
+  0%   { transform: translateX(-24px) scale(.96); opacity: 0; }
+  60%  { transform: translateX(4px) scale(1.02); opacity: 1; }
+  100% { transform: none; }
+}
+.lob-llegada { animation: lob-llegada .6s cubic-bezier(.2,.8,.2,1); }
+
+/* ─── Galería: tira continua ─────────────────────────────────────────────── */
+.lob-marquee {
+  --gap: 1.25rem;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 7%, #000 93%, transparent 100%);
+          mask-image: linear-gradient(to right, transparent 0, #000 7%, #000 93%, transparent 100%);
+}
+/* gap + padding-right iguales: el 50% del ancho es exactamente una copia → bucle sin salto */
+.lob-marquee-pista {
+  gap: var(--gap);
+  padding-right: var(--gap);
+  animation: lob-marquee var(--duracion, 60s) linear infinite;
+}
+.lob-marquee:hover .lob-marquee-pista,
+.lob-marquee:focus-within .lob-marquee-pista { animation-play-state: paused; }
+@keyframes lob-marquee { to { transform: translateX(-50%); } }
+/* Ritmo editorial: fotos alternadas a distinta altura */
+@media (min-width: 768px) {
+  .lob-foto:nth-child(even) { transform: translateY(2rem); }
+}
+/* Al pasar el mouse, la foto elegida queda al frente */
+.lob-foto { transition: opacity .4s ease; }
+.lob-marquee-pista:hover .lob-foto:not(:hover) { opacity: .55; }
+
+/* Visor */
+.lob-visor[open] { animation: lob-rise .3s ease-out; }
+
 @media (prefers-reduced-motion: reduce) {
-  .lob-rise, .lob-abrir .lob-bloque, .lob-dots span, .lob-resaltado { animation: none; }
+  .lob-rise, .lob-abrir .lob-bloque, .lob-dots span, .lob-resaltado, .lob-destello, .lob-llegada { animation: none; }
   .lob-abrir .lob-telon, .lob-confeti { display: none; }
+  .lob-marquee-pista { animation: none; }
+  .lob-marquee { overflow-x: auto; -webkit-mask-image: none; mask-image: none; }
   html { scroll-behavior: auto; }
 }

@@ -11,12 +11,21 @@ const estado = {
   categorias: [],
   concursantes: [],
   notas: new Map(),      // concursante_id → fila de calificaciones
+  turnos: new Map(),     // concursante_id → turno sorteado (solo los ya revelados)
   categoria: null,
   seleccionado: null,
   sucio: false,
 }
 
-const delCat = (id) => estado.concursantes.filter((c) => c.categoria_id === id)
+// Si la categoría ya se sorteó, la lista sigue el orden de presentación.
+const clave = (c) => estado.turnos.get(c.id) ?? 100000 + (c.orden ?? 0)
+const delCat = (id) => estado.concursantes.filter((c) => c.categoria_id === id).sort((a, b) => clave(a) - clave(b))
+const etiquetaNumero = (c) => estado.turnos.has(c.id) ? `Turno ${estado.turnos.get(c.id)}` : `Nº ${c.orden ?? '—'}`
+
+async function cargarTurnos() {
+  const { data, error } = await supabase.rpc('orden_presentacion')
+  estado.turnos = new Map((error ? [] : data).map((t) => [t.concursante_id, t.turno]))
+}
 const catActual = () => estado.categorias.find((c) => c.id === estado.categoria)
 
 // ─── INICIO ──────────────────────────────────────────────────────────────────
@@ -31,6 +40,7 @@ async function cargar() {
     supabase.from('categorias').select('*').order('orden'),
     supabase.from('concursantes').select('*').order('orden', { nullsFirst: false }).order('nombre'),
     supabase.from('calificaciones').select('*').eq('jurado_id', estado.perfil.id),
+    cargarTurnos(),
   ])
 
   const err = cats.error || cons.error || notas.error
@@ -106,7 +116,9 @@ function itemLista(c) {
       <button type="button" data-con="${c.id}" aria-current="${activo}"
               class="flex w-full cursor-pointer items-center gap-3 rounded-sm border-l-[5px] bg-white px-4 py-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal
                      ${activo ? 'border-teal ring-2 ring-teal' : nota ? 'border-gold hover:bg-sand-200/50' : 'border-sand hover:bg-sand-200/50'}">
-        <span class="w-7 shrink-0 font-sans text-sm font-bold text-slate">${c.orden ?? '·'}</span>
+        ${estado.turnos.has(c.id)
+          ? `<span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gold font-sans text-xs font-extrabold text-ink" title="Turno sorteado">${estado.turnos.get(c.id)}</span>`
+          : `<span class="w-7 shrink-0 font-sans text-sm font-bold text-slate">${c.orden ?? '·'}</span>`}
         <span class="min-w-0 flex-1">
           <span class="block truncate font-semibold leading-tight">${esc(c.nombre)}</span>
           ${c.institucion ? `<span class="block truncate font-sans text-xs text-slate">${esc(c.institucion)}</span>` : ''}
@@ -124,7 +136,7 @@ function panel() {
 
   return `
     <form id="calif-form" class="lob-rise bg-white p-6 sm:p-8" novalidate>
-      <p class="font-sans text-[11px] uppercase tracking-[0.18em] text-teal">${esc(catActual()?.nombre)} · Nº ${c.orden ?? '—'}</p>
+      <p class="font-sans text-[11px] uppercase tracking-[0.18em] text-teal">${esc(catActual()?.nombre)} · ${etiquetaNumero(c)}</p>
       <h2 class="mt-1 text-2xl font-bold leading-tight sm:text-[2rem]">${esc(c.nombre)}</h2>
       ${c.institucion ? `<p class="mt-1 font-sans text-sm text-slate">${esc(c.institucion)}</p>` : ''}
       ${c.poema ? `<p class="mt-2 font-sans text-sm"><span class="text-[11px] uppercase tracking-[0.14em] text-slate">Poema</span> <span class="font-semibold">${esc(c.poema)}</span></p>` : ''}
@@ -276,11 +288,14 @@ window.addEventListener('beforeunload', (e) => { if (estado.sucio) e.preventDefa
 
 await cargar()
 
-// Si la organización publica una categoría mientras el jurado está dentro,
-// el formulario pasa a solo lectura.
+// Si la organización publica una categoría, el formulario pasa a solo lectura;
+// si se está sorteando, la lista se reordena por turno.
 supabase.channel('jurado-categorias')
-  .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'categorias' }, ({ new: cat }) => {
+  .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'categorias' }, async ({ new: cat }) => {
     const c = estado.categorias.find((x) => x.id === cat.id)
-    if (c) { c.publicada = cat.publicada; render() }
+    if (!c) return
+    Object.assign(c, cat)
+    await cargarTurnos() // el sorteo puede estar revelando turnos
+    if (!estado.sucio) render() // nunca se pisa una calificación a medio escribir
   })
   .subscribe()
