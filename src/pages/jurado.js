@@ -21,26 +21,6 @@ const catActual = () => estado.categorias.find((c) => c.id === estado.categoria)
 
 // ─── INICIO ──────────────────────────────────────────────────────────────────
 
-estado.perfil = await requerirIngreso(app, { titulo: 'Ingreso del jurado' })
-$('#jurado-nombre').textContent = estado.perfil.nombre
-$('#btn-salir').hidden = false
-$('#btn-salir').addEventListener('click', () => {
-  if (estado.sucio && !confirm('Tienes una calificación sin guardar. ¿Salir de todos modos?')) return
-  salir()
-})
-
-window.addEventListener('beforeunload', (e) => { if (estado.sucio) e.preventDefault() })
-
-await cargar()
-
-// Si la organización publica una categoría mientras el jurado está dentro,
-// el formulario pasa a solo lectura.
-supabase.channel('jurado-categorias')
-  .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'categorias' }, ({ new: cat }) => {
-    const c = estado.categorias.find((x) => x.id === cat.id)
-    if (c) { c.publicada = cat.publicada; render() }
-  })
-  .subscribe()
 
 // ─── DATOS ───────────────────────────────────────────────────────────────────
 
@@ -279,3 +259,28 @@ function conectarFormulario() {
 
   if (!form.querySelector('fieldset').disabled) form.querySelector('input[type=number]')?.focus()
 }
+
+// ─── ARRANQUE ────────────────────────────────────────────────────────────────
+// Va al final del archivo: así todas las funciones y constantes de arriba ya
+// están inicializadas cuando corre el await (evita errores de TDZ).
+
+estado.perfil = await requerirIngreso(app, { titulo: 'Ingreso del jurado' })
+$('#jurado-nombre').textContent = estado.perfil.nombre
+$('#btn-salir').hidden = false
+$('#btn-salir').addEventListener('click', () => {
+  if (estado.sucio && !confirm('Tienes una calificación sin guardar. ¿Salir de todos modos?')) return
+  salir()
+})
+
+window.addEventListener('beforeunload', (e) => { if (estado.sucio) e.preventDefault() })
+
+await cargar()
+
+// Si la organización publica una categoría mientras el jurado está dentro,
+// el formulario pasa a solo lectura.
+supabase.channel('jurado-categorias')
+  .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'categorias' }, ({ new: cat }) => {
+    const c = estado.categorias.find((x) => x.id === cat.id)
+    if (c) { c.publicada = cat.publicada; render() }
+  })
+  .subscribe()

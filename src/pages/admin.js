@@ -16,23 +16,6 @@ const estado = {
 
 const delCat = (id) => estado.resultados.filter((r) => r.categoria_id === id)
 
-const perfil = await requerirIngreso(app, { titulo: 'Ingreso de la organización', rolRequerido: 'admin' })
-$('#jurado-nombre').textContent = perfil.nombre
-$('#btn-salir').hidden = false
-$('#btn-salir').addEventListener('click', salir)
-
-await cargar()
-
-// Progreso en vivo: cada vez que un jurado guarda, se recalcula.
-// Si el admin está editando un promedio, se espera a que termine.
-let t
-function recargarLuego() {
-  clearTimeout(t)
-  t = setTimeout(() => (document.activeElement?.dataset.ajuste ? recargarLuego() : cargar()), 400)
-}
-supabase.channel('admin-calificaciones')
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'calificaciones' }, () => recargarLuego())
-  .subscribe()
 
 // ─── DATOS ───────────────────────────────────────────────────────────────────
 
@@ -118,7 +101,7 @@ function empates(filas) {
   return new Set([...porPromedio.values()].filter((ids) => ids.length > 1).flat())
 }
 
-const pts = (n) => (n == null ? '—' : Number(n).toFixed(2))
+function pts(n) { return n == null ? '—' : Number(n).toFixed(2) }
 
 function tabla(filas, cat, empatados) {
   const editable = !cat.publicada
@@ -292,3 +275,25 @@ function conectarImportar() {
     cargar()
   })
 }
+
+// ─── ARRANQUE ────────────────────────────────────────────────────────────────
+// Va al final del archivo: así todas las funciones y constantes de arriba ya
+// están inicializadas cuando corre el await (evita errores de TDZ).
+
+const perfil = await requerirIngreso(app, { titulo: 'Ingreso de la organización', rolRequerido: 'admin' })
+$('#jurado-nombre').textContent = perfil.nombre
+$('#btn-salir').hidden = false
+$('#btn-salir').addEventListener('click', salir)
+
+await cargar()
+
+// Progreso en vivo: cada vez que un jurado guarda, se recalcula.
+// Si el admin está editando un promedio, se espera a que termine.
+let t
+function recargarLuego() {
+  clearTimeout(t)
+  t = setTimeout(() => (document.activeElement?.dataset.ajuste ? recargarLuego() : cargar()), 400)
+}
+supabase.channel('admin-calificaciones')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'calificaciones' }, () => recargarLuego())
+  .subscribe()
