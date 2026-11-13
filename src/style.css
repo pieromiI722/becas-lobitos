@@ -45,14 +45,20 @@ html { scroll-behavior: smooth; }
   pointer-events: none;
 }
 
-/* Imagen del hero (si el archivo no existe, main.js oculta estos bloques) */
-.lob-hero-img {
-  background: url("/img/hero-declamacion.jpg") 85% center / cover no-repeat;
-}
+/* Imagen del hero: <picture> con WebP (45 KB) y JPG de respaldo (73 KB) */
+.lob-hero-foto { object-position: 85% center; }
 /* Pantallas anchas: la imagen se ajusta a la altura y se ancla a la derecha
    (su borde izquierdo es casi del mismo tono que el fondo #020f12) */
 @media (min-width: 1440px) {
-  .lob-hero-img { background-size: auto 112%; background-position: right center; }
+  .lob-hero-pic > .lob-hero-foto {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    width: auto;
+    max-width: none;
+    height: 112%;
+    transform: translateY(-50%);
+  }
 }
 /* Oscurece la izquierda para el texto y funde el borde inferior con la franja del evento */
 .lob-hero-fade {

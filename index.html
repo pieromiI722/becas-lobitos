@@ -37,10 +37,13 @@
   </header>
 
   <!-- ============ HERO ============ -->
-  <!-- Imagen: public/img/hero-declamacion.jpg (2:1, personaje a la derecha). El fondo #020f12 coincide con su borde izquierdo. -->
+  <!-- Imagen: public/img/hero-declamacion.webp + .jpg de respaldo (2:1, personaje a la derecha). El fondo #020f12 coincide con su borde izquierdo. -->
   <section class="lob-stage relative isolate overflow-hidden bg-[#020f12] text-paper">
-    <div data-hero-img class="lob-hero-img absolute inset-0 -z-10 hidden md:block" aria-hidden="true"></div>
-    <div data-hero-img class="lob-hero-fade absolute inset-0 -z-10 hidden md:block" aria-hidden="true"></div>
+    <picture class="lob-hero-pic absolute inset-0 -z-10 hidden md:block">
+      <source srcset="/img/hero-declamacion.webp" type="image/webp">
+      <img src="/img/hero-declamacion.jpg" alt="" width="1774" height="887" fetchpriority="high" class="lob-hero-foto h-full w-full object-cover">
+    </picture>
+    <div class="lob-hero-fade absolute inset-0 -z-10 hidden md:block" aria-hidden="true"></div>
 
     <div class="mx-auto flex max-w-6xl flex-col px-5 py-14 sm:px-8 sm:py-20 md:min-h-[620px] md:justify-center">
       <div class="max-w-[560px]">
@@ -65,7 +68,10 @@
     </div>
 
     <!-- En móvil la imagen va debajo del texto -->
-    <div data-hero-img class="lob-hero-img lob-hero-movil -mt-6 aspect-[4/3] w-full md:hidden" aria-hidden="true"></div>
+    <picture class="lob-hero-movil -mt-6 block aspect-[4/3] w-full md:hidden">
+      <source srcset="/img/hero-declamacion.webp" type="image/webp">
+      <img src="/img/hero-declamacion.jpg" alt="" width="1774" height="887" loading="lazy" class="lob-hero-foto h-full w-full object-cover">
+    </picture>
   </section>
 
   <!-- ============ DATOS DEL EVENTO ============ -->

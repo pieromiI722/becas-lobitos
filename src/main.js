@@ -5,15 +5,6 @@ import { esc, $, $$, norm } from './lib/ui.js'
 
 const reducido = matchMedia('(prefers-reduced-motion: reduce)').matches
 
-// ─── IMAGEN DEL HERO ─────────────────────────────────────────────────────────
-// Si todavía no se subió public/img/hero-declamacion.jpg, se ocultan sus bloques
-// y queda el fondo de escenario.
-{
-  const img = new Image()
-  img.onerror = () => $$('[data-hero-img]').forEach((el) => el.remove())
-  img.src = '/img/hero-declamacion.jpg'
-}
-
 // ─── RÚBRICA (sección "Cómo califica el jurado") ─────────────────────────────
 
 const maxPeso = Math.max(...CRITERIOS.map((c) => c.max))
