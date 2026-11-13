@@ -1,7 +1,7 @@
 import '../style.css'
 import { supabase } from '../lib/supabase.js'
 import { requerirIngreso, salir } from '../lib/auth.js'
-import { esc, $, $$, fmt, norm, toast } from '../lib/ui.js'
+import { esc, $, $$, norm, toast } from '../lib/ui.js'
 import { parsearCSV, aConcursantes } from '../lib/csv.js'
 
 const app = $('#app')
@@ -24,12 +24,14 @@ $('#btn-salir').addEventListener('click', salir)
 await cargar()
 
 // Progreso en vivo: cada vez que un jurado guarda, se recalcula.
+// Si el admin está editando un promedio, se espera a que termine.
 let t
+function recargarLuego() {
+  clearTimeout(t)
+  t = setTimeout(() => (document.activeElement?.dataset.ajuste ? recargarLuego() : cargar()), 400)
+}
 supabase.channel('admin-calificaciones')
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'calificaciones' }, () => {
-    clearTimeout(t)
-    t = setTimeout(cargar, 400)
-  })
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'calificaciones' }, () => recargarLuego())
   .subscribe()
 
 // ─── DATOS ───────────────────────────────────────────────────────────────────
@@ -59,6 +61,7 @@ function render() {
   const cat = estado.categorias.find((c) => c.id === estado.categoria)
   const filas = delCat(cat.id)
   const completos = filas.filter((r) => r.jurados_calificaron >= estado.nJurados).length
+  const empatados = empates(filas)
 
   app.innerHTML = `
     <div class="mx-auto max-w-7xl px-5 py-6 sm:px-8">
@@ -82,6 +85,8 @@ function render() {
               ${completos} de ${filas.length} concursantes con las ${estado.nJurados} calificaciones completas
               · ${cat.publicada ? `Publicada ${new Date(cat.publicada_en).toLocaleString('es-PE')}` : 'No publicada'}
             </p>
+            ${empatados.size ? `<p class="mt-2 inline-flex items-center gap-2 rounded-sm bg-brick/10 px-3 py-1.5 font-sans text-sm font-semibold text-brick">
+              ${empatados.size} concursantes con el mismo promedio${cat.publicada ? '' : ' · ajusta el promedio final para desempatar'}</p>` : ''}
           </div>
           <button id="btn-publicar" type="button" ${filas.length ? '' : 'disabled'}
                   class="min-h-[48px] cursor-pointer rounded-sm px-6 py-3 font-sans text-base font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal disabled:cursor-not-allowed disabled:opacity-50
@@ -90,54 +95,131 @@ function render() {
           </button>
         </div>
 
-        ${filas.length ? tabla(filas) : `<p class="mt-6 font-sans text-slate">Sin concursantes. Impórtalos abajo.</p>`}
+        ${filas.length ? tabla(filas, cat, empatados) : `<p class="mt-6 font-sans text-slate">Sin concursantes. Impórtalos abajo.</p>`}
       </section>
 
       ${seccionImportar()}
     </div>`
 
   $$('[data-cat]').forEach((b) => b.addEventListener('click', () => { estado.categoria = b.dataset.cat; render() }))
-  $('#btn-publicar')?.addEventListener('click', () => publicar(cat, filas, completos))
+  $('#btn-publicar')?.addEventListener('click', () => publicar(cat, filas, completos, empatados))
+  conectarAjustes()
   conectarImportar()
 }
 
-function tabla(filas) {
+/** Ids de concursantes que comparten promedio final con otro de su categoría. */
+function empates(filas) {
+  const porPromedio = new Map()
+  for (const r of filas) {
+    if (r.promedio == null) continue
+    const k = Number(r.promedio).toFixed(2)
+    porPromedio.set(k, [...(porPromedio.get(k) ?? []), r.concursante_id])
+  }
+  return new Set([...porPromedio.values()].filter((ids) => ids.length > 1).flat())
+}
+
+const pts = (n) => (n == null ? '—' : Number(n).toFixed(2))
+
+function tabla(filas, cat, empatados) {
+  const editable = !cat.publicada
   return `
     <div class="mt-6 overflow-x-auto">
-      <table class="w-full min-w-[640px] font-sans text-sm">
+      <table class="w-full min-w-[760px] font-sans text-sm">
         <thead>
           <tr class="border-b-[3px] border-ink text-left text-[11px] uppercase tracking-[0.14em] text-slate">
             <th class="py-2 pr-3">Puesto</th><th class="py-2 pr-3">Nº</th><th class="py-2 pr-3">Concursante</th>
-            <th class="py-2 pr-3">Institución</th><th class="py-2 pr-3 text-center">Jurados</th><th class="py-2 text-right">Promedio</th>
+            <th class="py-2 pr-3">Institución</th><th class="py-2 pr-3 text-center">Jurados</th>
+            <th class="py-2 pr-3 text-right">Prom. jurados</th><th class="py-2 text-right">Promedio final</th>
           </tr>
         </thead>
         <tbody>
           ${filas.map((r) => {
             const falta = r.jurados_calificaron < estado.nJurados
+            const empate = empatados.has(r.concursante_id)
             return `
-            <tr class="border-b border-sand-200">
-              <td class="py-2.5 pr-3 text-lg font-extrabold">${r.puesto ?? '—'}</td>
+            <tr class="border-b border-sand-200 ${empate ? 'bg-brick/5' : ''}">
+              <td class="py-2.5 pr-3 whitespace-nowrap">
+                <span class="text-lg font-extrabold">${r.puesto ?? '—'}</span>
+                ${empate ? `<span class="ml-1 rounded-sm bg-brick px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-paper" title="Mismo promedio que otro concursante. Si no se ajusta, desempata el criterio Interpretación.">Empate</span>` : ''}
+              </td>
               <td class="py-2.5 pr-3 text-slate">${r.orden ?? ''}</td>
               <td class="py-2.5 pr-3 font-semibold">${esc(r.nombre)}</td>
               <td class="py-2.5 pr-3 text-slate">${esc(r.institucion ?? '')}</td>
               <td class="py-2.5 pr-3 text-center"><span class="rounded-sm px-2 py-0.5 font-bold ${falta ? 'bg-brick/10 text-brick' : 'bg-teal/10 text-teal'}">${r.jurados_calificaron}/${estado.nJurados}</span></td>
-              <td class="py-2.5 text-right text-base font-bold tabular-nums">${fmt(r.promedio)}</td>
+              <td class="py-2.5 pr-3 text-right tabular-nums text-slate">${pts(r.promedio_jurados)}</td>
+              <td class="py-2 text-right whitespace-nowrap">
+                ${editable && r.promedio != null ? `
+                  <span class="inline-flex items-center justify-end gap-1.5">
+                    ${r.ajustado ? `<button type="button" data-quitar="${r.concursante_id}" title="Quitar ajuste y volver al promedio de los jurados"
+                                      class="cursor-pointer rounded-sm px-1.5 py-1 text-xs font-semibold text-teal hover:bg-teal/10">↺ quitar</button>` : ''}
+                    <input type="number" inputmode="decimal" min="0" max="100" step="0.01" value="${pts(r.promedio)}"
+                           data-ajuste="${r.concursante_id}" data-original="${pts(r.promedio)}" aria-label="Promedio final de ${esc(r.nombre)}"
+                           class="w-24 rounded-sm border-[1.5px] px-2 py-1.5 text-right text-base font-bold tabular-nums focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal
+                                  ${r.ajustado ? 'border-gold bg-gold/15' : 'border-sand bg-white'}">
+                  </span>`
+                : `<span class="text-base font-bold tabular-nums">${pts(r.promedio)}</span>
+                   ${r.ajustado ? '<span class="ml-1 rounded-sm bg-gold/30 px-1.5 py-0.5 text-[10px] font-bold uppercase">ajustado</span>' : ''}`}
+              </td>
             </tr>`
           }).join('')}
         </tbody>
       </table>
+      ${editable ? `<p class="mt-3 font-sans text-xs text-slate">
+        El promedio final se puede ajustar antes de publicar (Enter o clic fuera para guardar, Esc para cancelar). Los ajustes se marcan
+        en dorado, solo los ve la organización y quedan bloqueados al publicar. El público solo ve el promedio final.</p>` : ''}
     </div>`
 }
 
-async function publicar(cat, filas, completos) {
+function conectarAjustes() {
+  $$('[data-ajuste]').forEach((input) => {
+    const guardar = async () => {
+      const raw = input.value.trim().replace(',', '.')
+      if (raw === input.dataset.original) return
+      const n = Number(raw)
+      if (raw === '' || !Number.isFinite(n) || n < 0 || n > 100) {
+        toast('El promedio debe estar entre 0 y 100', 'error')
+        input.value = input.dataset.original
+        return
+      }
+      input.dataset.original = n.toFixed(2) // evita doble guardado (Enter + blur)
+      const id = Number(input.dataset.ajuste)
+      const fila = estado.resultados.find((r) => r.concursante_id === id)
+      // Si vuelve exactamente al promedio de los jurados, se elimina el ajuste.
+      const { error } = n.toFixed(2) === pts(fila?.promedio_jurados)
+        ? await supabase.from('ajustes').delete().eq('concursante_id', id)
+        : await supabase.from('ajustes').upsert({ concursante_id: id, promedio: n })
+      if (error) return toast(`No se pudo guardar: ${error.message}`, 'error')
+      toast(`Promedio final de ${fila?.nombre ?? 'concursante'}: ${n.toFixed(2)}`)
+      input.blur()
+      cargar()
+    }
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); guardar() }
+      if (e.key === 'Escape') { input.value = input.dataset.original; input.blur() }
+    })
+    input.addEventListener('blur', guardar)
+  })
+
+  $$('[data-quitar]').forEach((b) => b.addEventListener('click', async () => {
+    const { error } = await supabase.from('ajustes').delete().eq('concursante_id', Number(b.dataset.quitar))
+    if (error) return toast(`Error: ${error.message}`, 'error')
+    toast('Ajuste quitado')
+    cargar()
+  }))
+}
+
+async function publicar(cat, filas, completos, empatados) {
   const publicar = !cat.publicada
   if (publicar) {
     const faltan = filas.length - completos
-    const msg = faltan
-      ? `Atención: a ${faltan} concursante(s) aún les faltan calificaciones.\n\n¿Publicar ${cat.nombre} de todos modos? Los jurados ya no podrán modificar notas.`
-      : `¿Publicar los resultados de ${cat.nombre}? Aparecerán al instante en la página principal y los jurados ya no podrán modificar notas.`
+    const avisos = [
+      faltan && `• A ${faltan} concursante(s) aún les faltan calificaciones.`,
+      empatados.size && `• Hay ${empatados.size} concursantes con el mismo promedio (se desempatará por Interpretación).`,
+    ].filter(Boolean)
+    const msg = (avisos.length ? `Atención:\n${avisos.join('\n')}\n\n` : '')
+      + `¿Publicar los resultados de ${cat.nombre}? Aparecerán al instante en la página principal y ya no se podrán modificar notas ni promedios.`
     if (!confirm(msg)) return
-  } else if (!confirm(`¿Retirar la publicación de ${cat.nombre}? Desaparecerá de la página y los jurados podrán volver a editar.`)) return
+  } else if (!confirm(`¿Retirar la publicación de ${cat.nombre}? Desaparecerá de la página y se podrán volver a editar notas y promedios.`)) return
 
   const { error } = await supabase.from('categorias')
     .update({ publicada: publicar, publicada_en: publicar ? new Date().toISOString() : null })
