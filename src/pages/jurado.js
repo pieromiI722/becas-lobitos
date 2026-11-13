@@ -16,6 +16,9 @@ const estado = {
   sucio: false,
 }
 
+const delCat = (id) => estado.concursantes.filter((c) => c.categoria_id === id)
+const catActual = () => estado.categorias.find((c) => c.id === estado.categoria)
+
 // ─── INICIO ──────────────────────────────────────────────────────────────────
 
 estado.perfil = await requerirIngreso(app, { titulo: 'Ingreso del jurado' })
@@ -63,8 +66,6 @@ async function cargar() {
   render()
 }
 
-const delCat = (id) => estado.concursantes.filter((c) => c.categoria_id === id)
-const catActual = () => estado.categorias.find((c) => c.id === estado.categoria)
 
 // ─── RENDER ──────────────────────────────────────────────────────────────────
 

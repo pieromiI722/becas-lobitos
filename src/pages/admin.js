@@ -14,6 +14,8 @@ const estado = {
   importacion: null, // { filas, errores }
 }
 
+const delCat = (id) => estado.resultados.filter((r) => r.categoria_id === id)
+
 const perfil = await requerirIngreso(app, { titulo: 'Ingreso de la organización', rolRequerido: 'admin' })
 $('#jurado-nombre').textContent = perfil.nombre
 $('#btn-salir').hidden = false
@@ -50,7 +52,6 @@ async function cargar() {
   render()
 }
 
-const delCat = (id) => estado.resultados.filter((r) => r.categoria_id === id)
 
 // ─── RENDER ──────────────────────────────────────────────────────────────────
 
