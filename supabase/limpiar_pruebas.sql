@@ -1,5 +1,6 @@
 -- ════════════════════════════════════════════════════════════════════════════
 --  Dejar la base lista para el concurso (borra TODO lo generado en pruebas)
+--  ⚠ Solo para ANTES del concurso: si ya hay turnos revelados o calificaciones, se detiene solo.
 --  Ejecutar en: Supabase → SQL Editor → New query → pegar → Run
 --
 --  Borra: calificaciones, ajustes de promedio y sorteos.
@@ -8,6 +9,16 @@
 --           (Secundaria: Romero Balbin = turno 1, Santos Román = turno 2).
 -- ════════════════════════════════════════════════════════════════════════════
 begin;
+
+-- Candado: si el concurso ya empezó (turnos revelados o calificaciones cargadas),
+-- el script se detiene sin borrar nada.
+do $$
+begin
+  if exists (select 1 from public.categorias where sorteo_revelados > 0)
+     or exists (select 1 from public.calificaciones) then
+    raise exception 'DETENIDO: ya hay sorteos revelados o calificaciones del concurso. Este script los borraría. No se hizo ningún cambio.';
+  end if;
+end $$;
 
 delete from public.calificaciones;
 delete from public.ajustes;
