@@ -37,9 +37,9 @@
   </header>
 
   <!-- ============ HERO ============ -->
-  <!-- Imagen: public/img/hero-declamacion.jpg (2400×1350). Si no existe, queda el fondo de escenario. -->
-  <section class="lob-stage relative isolate overflow-hidden bg-ink text-paper">
-    <div data-hero-img class="lob-hero-img absolute inset-y-0 right-0 -z-10 hidden w-[68%] md:block" aria-hidden="true"></div>
+  <!-- Imagen: public/img/hero-declamacion.jpg (2:1, personaje a la derecha). El fondo #020f12 coincide con su borde izquierdo. -->
+  <section class="lob-stage relative isolate overflow-hidden bg-[#020f12] text-paper">
+    <div data-hero-img class="lob-hero-img absolute inset-0 -z-10 hidden md:block" aria-hidden="true"></div>
     <div data-hero-img class="lob-hero-fade absolute inset-0 -z-10 hidden md:block" aria-hidden="true"></div>
 
     <div class="mx-auto flex max-w-6xl flex-col px-5 py-14 sm:px-8 sm:py-20 md:min-h-[620px] md:justify-center">
@@ -65,7 +65,7 @@
     </div>
 
     <!-- En móvil la imagen va debajo del texto -->
-    <div data-hero-img class="lob-hero-img aspect-[4/3] w-full md:hidden" aria-hidden="true"></div>
+    <div data-hero-img class="lob-hero-img lob-hero-movil -mt-6 aspect-[4/3] w-full md:hidden" aria-hidden="true"></div>
   </section>
 
   <!-- ============ DATOS DEL EVENTO ============ -->

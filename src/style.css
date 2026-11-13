@@ -47,12 +47,23 @@ html { scroll-behavior: smooth; }
 
 /* Imagen del hero (si el archivo no existe, main.js oculta estos bloques) */
 .lob-hero-img {
-  background: url("/img/hero-declamacion.jpg") 70% center / cover no-repeat;
+  background: url("/img/hero-declamacion.jpg") 85% center / cover no-repeat;
 }
+/* Pantallas anchas: la imagen se ajusta a la altura y se ancla a la derecha
+   (su borde izquierdo es casi del mismo tono que el fondo #020f12) */
+@media (min-width: 1440px) {
+  .lob-hero-img { background-size: auto 112%; background-position: right center; }
+}
+/* Oscurece la izquierda para el texto y funde el borde inferior con la franja del evento */
 .lob-hero-fade {
-  background: linear-gradient(90deg,
-    var(--color-ink) 0%, var(--color-ink) 34%,
-    rgb(18 52 59 / 0.75) 50%, rgb(18 52 59 / 0) 72%);
+  background:
+    linear-gradient(90deg, rgb(2 15 18 / 0.94) 0%, rgb(2 15 18 / 0.82) 30%, rgb(2 15 18 / 0.35) 50%, rgb(2 15 18 / 0) 64%),
+    linear-gradient(to top, rgb(2 15 18 / 0.55) 0%, rgb(2 15 18 / 0) 25%);
+}
+/* En móvil la imagen va debajo del texto y se funde por arriba */
+.lob-hero-movil {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 22%);
+          mask-image: linear-gradient(to bottom, transparent 0%, #000 22%);
 }
 
 /* Sala de resultados: dos focos cenitales */
