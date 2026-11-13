@@ -39,4 +39,4 @@ select
   (select count(*) from public.ajustes)        as ajustes,
   (select count(*) from public.sorteo)         as sorteos,
   (select count(*) from public.categorias where publicada or sorteo_intentos > 0) as categorias_con_estado,
-  (select count(*) from public.concursantes)   as concursantes;   -- debe seguir en 69
+  (select count(*) from public.concursantes)   as concursantes;   -- debe seguir en 70
