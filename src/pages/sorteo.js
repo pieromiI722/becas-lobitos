@@ -11,6 +11,8 @@ const estado = {
   categorias: [],
   concursantes: [],
   turnos: new Map(),      // concursante_id → turno (el admin recibe todos)
+  fijos: new Set(),       // concursantes con turno asignado por la organización (no sorteado)
+  fijosPorCat: new Map(), // categoria_id → cantidad de turnos asignados (antes de sortear)
   categoria: null,
   girando: false,
   auto: false,
@@ -26,10 +28,11 @@ const ordenDe = (id) => delCat(id)
 // ─── DATOS ───────────────────────────────────────────────────────────────────
 
 async function cargar() {
-  const [cats, cons, orden] = await Promise.all([
+  const [cats, cons, orden, fijos] = await Promise.all([
     supabase.from('categorias').select('*').order('orden'),
     supabase.from('concursantes').select('id, categoria_id, nombre, institucion, poema').order('nombre'),
     supabase.rpc('orden_presentacion'),
+    supabase.from('turnos_fijos').select('categoria_id'), // si la migración 004 no existe, se ignora
   ])
   const err = cats.error || cons.error || orden.error
   if (err) {
@@ -39,6 +42,9 @@ async function cargar() {
   estado.categorias   = cats.data
   estado.concursantes = cons.data
   estado.turnos       = new Map(orden.data.map((t) => [t.concursante_id, t.turno]))
+  estado.fijos        = new Set(orden.data.filter((t) => t.fijo).map((t) => t.concursante_id))
+  estado.fijosPorCat  = new Map()
+  for (const f of fijos.error ? [] : fijos.data) estado.fijosPorCat.set(f.categoria_id, (estado.fijosPorCat.get(f.categoria_id) ?? 0) + 1)
   estado.categoria  ??= (estado.categorias.find((c) => c.sorteo_revelados < delCat(c.id).length) ?? estado.categorias[0])?.id
   render()
 }
@@ -118,7 +124,9 @@ function vistaSinSortear(cat, lista, yaSorteada = false) {
                   class="inline-flex min-h-[64px] cursor-pointer items-center gap-3 rounded-sm bg-gold px-10 py-4 text-xl font-extrabold text-ink shadow-[0_0_60px_-10px_rgb(247_197_72/0.6)] transition-transform hover:scale-[1.03] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold">
             ${yaSorteada ? 'Ir al sorteo →' : `Sortear ${esc(cat.nombre)}`}
           </button>
-          <span class="text-xs text-mist/70">${yaSorteada ? `Sorteo nº ${cat.sorteo_intentos} · ${cat.sorteo_revelados} turnos revelados` : 'El orden lo decide la base de datos al azar.'}</span>
+          <span class="text-xs text-mist/70">${yaSorteada ? `Sorteo nº ${cat.sorteo_intentos} · ${cat.sorteo_revelados} turnos revelados`
+              : estado.fijosPorCat.get(cat.id) ? `${estado.fijosPorCat.get(cat.id) === 1 ? '1 turno asignado' : `${estado.fijosPorCat.get(cat.id)} turnos asignados`} por la organización; el resto, al azar.`
+              : 'El orden lo decide la base de datos al azar.'}</span>
         </div>
       </div>
 
@@ -214,6 +222,7 @@ function itemOrden(c, visible, reciente) {
       <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-extrabold tabular-nums
                    ${visible ? 'bg-gold text-ink' : 'bg-paper/5 text-mist/50'}">${turno}</span>
       <span class="min-w-0 truncate ${visible ? 'font-bold' : 'text-mist/30'}">${visible ? esc(c.nombre) : '· · ·'}</span>
+      ${visible && estado.fijos.has(c.id) ? '<span class="ml-auto shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gold/80">asignado</span>' : ''}
     </li>`
 }
 
@@ -247,7 +256,9 @@ async function revelarSiguiente() {
   $('#num-turno').textContent = turno
   $('#detalle').textContent = ''
 
-  await girarRodillo(delCat(cat.id), elegido)
+  const asignado = estado.fijos.has(elegido.id)
+  if (asignado) mostrarAsignado(elegido)
+  else await girarRodillo(delCat(cat.id), elegido)
 
   // Registrar en la base → el público lo ve en vivo.
   const { error } = await supabase.from('categorias').update({ sorteo_revelados: i + 1 }).eq('id', cat.id)
@@ -258,7 +269,7 @@ async function revelarSiguiente() {
   const contador = $("#contador"); if (contador) contador.textContent = `${i + 1} / ${orden.length}`
   const prog = $(`[data-progreso="${cat.id}"]`); if (prog) prog.textContent = `${i + 1}/${orden.length}`
   const escena = $('#escena')
-  $('#detalle').textContent = [elegido.institucion, elegido.poema].filter(Boolean).join(' · ')
+  $('#detalle').textContent = [asignado && 'Turno asignado por la organización', elegido.institucion, elegido.poema].filter(Boolean).join(' · ')
   escena?.classList.remove('lob-destello'); void escena?.offsetWidth; escena?.classList.add('lob-destello')
   confeti(escena, { cantidad: 36 })
   // El anterior deja de estar resaltado; el nuevo llega a la lista.
@@ -288,6 +299,16 @@ async function revelarSiguiente() {
   $$('[data-cat]').forEach((b) => b.removeAttribute('disabled'))
   $('#btn-ver-lista')?.removeAttribute('disabled')
   if (estado.auto) revelarSiguiente()
+}
+
+/** Turno asignado por la organización: se muestra directo, sin simular un sorteo. */
+function mostrarAsignado(elegido) {
+  const tira = $('#tira')
+  if (!tira) return
+  tira.getAnimations().forEach((a) => a.cancel())
+  tira.style.transform = ''
+  tira.innerHTML = filaRodillo('Turno asignado') + filaRodillo(elegido.nombre) + filaRodillo('')
+  tira.firstElementChild.classList.add('!text-base', 'uppercase', 'tracking-[0.25em]', 'text-gold')
 }
 
 /** Rodillo tipo tragamonedas: pasan nombres al azar y se detiene en el elegido. */
