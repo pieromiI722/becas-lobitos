@@ -14,6 +14,7 @@ const estado = {
   categoria: null,
   girando: false,
   auto: false,
+  verLista: false,       // mostrar la lista de inscritos aunque la categoría ya esté sorteada
 }
 
 const catActual = () => estado.categorias.find((c) => c.id === estado.categoria)
@@ -70,12 +71,13 @@ function render() {
 
       ${!lista.length
         ? `<p class="py-24 text-center text-mist">Esta categoría no tiene concursantes.</p>`
-        : !sorteada ? vistaSinSortear(cat, lista) : vistaSorteo(cat, orden, revelados, completo)}
+        : !sorteada || estado.verLista ? vistaSinSortear(cat, lista, sorteada) : vistaSorteo(cat, orden, revelados, completo)}
     </div>`
 
   $$('[data-cat]').forEach((b) => b.addEventListener('click', () => {
     if (estado.girando) return
     estado.auto = false
+    estado.verLista = false
     estado.categoria = b.dataset.cat
     render()
   }))
@@ -83,10 +85,15 @@ function render() {
   $('#btn-siguiente')?.addEventListener('click', () => revelarSiguiente())
   $('#btn-auto')?.addEventListener('click', () => alternarAuto())
   $('#btn-resortear')?.addEventListener('click', () => sortear(cat, true))
+  $('#btn-ver-lista')?.addEventListener('click', () => { estado.auto = false; estado.verLista = true; render() })
+  $('#btn-continuar')?.addEventListener('click', () => { estado.verLista = false; render() })
 }
 
-/** Antes de sortear: todos los inscritos en orden alfabético, para que el público verifique la lista. */
-function vistaSinSortear(cat, lista) {
+/**
+ * Todos los inscritos en orden alfabético, para que el público verifique la lista.
+ * Se muestra antes de sortear y también a pedido (botón "Ver inscritos") si ya se sorteó.
+ */
+function vistaSinSortear(cat, lista, yaSorteada = false) {
   const alfabetico = [...lista].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }))
   // Más columnas cuantos más concursantes, para que todo entre en una pantalla 16:9.
   // Listas largas (p. ej. Secundaria) en modo compacto para que entren en un proyector 1366×768.
@@ -103,15 +110,15 @@ function vistaSinSortear(cat, lista) {
           <h1 class="mt-2 font-extrabold leading-none tracking-[-0.03em] ${denso ? 'text-[2.25rem] sm:text-[2.75rem]' : 'text-[2.5rem] sm:text-[3.5rem]'}">Participantes inscritos</h1>
           <p class="mt-3 ${denso ? 'text-base' : 'text-lg'} text-mist">
             <b class="text-paper">${lista.length} concursantes</b> · en orden alfabético.
-            Verifiquen que su nombre esté en la lista antes de sortear.
+            ${yaSorteada ? 'El sorteo de esta categoría ya se realizó.' : 'Verifiquen que su nombre esté en la lista antes de sortear.'}
           </p>
         </div>
         <div class="flex flex-col items-start gap-2 sm:items-end">
-          <button id="btn-sortear" type="button"
+          <button id="${yaSorteada ? 'btn-continuar' : 'btn-sortear'}" type="button"
                   class="inline-flex min-h-[64px] cursor-pointer items-center gap-3 rounded-sm bg-gold px-10 py-4 text-xl font-extrabold text-ink shadow-[0_0_60px_-10px_rgb(247_197_72/0.6)] transition-transform hover:scale-[1.03] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold">
-            Sortear ${esc(cat.nombre)}
+            ${yaSorteada ? 'Ir al sorteo →' : `Sortear ${esc(cat.nombre)}`}
           </button>
-          <span class="text-xs text-mist/70">El orden lo decide la base de datos al azar.</span>
+          <span class="text-xs text-mist/70">${yaSorteada ? `Sorteo nº ${cat.sorteo_intentos} · ${cat.sorteo_revelados} turnos revelados` : 'El orden lo decide la base de datos al azar.'}</span>
         </div>
       </div>
 
@@ -180,7 +187,11 @@ function vistaSorteo(cat, orden, revelados, completo) {
       <div class="flex flex-col">
         <div class="flex items-baseline justify-between gap-4">
           <h2 class="text-2xl font-extrabold tracking-tight">Orden de presentación</h2>
-          <span id="contador" class="text-sm text-mist tabular-nums">${revelados} / ${orden.length}</span>
+          <span class="flex items-center gap-3">
+            <button id="btn-ver-lista" type="button" title="Mostrar la lista alfabética de inscritos"
+                    class="cursor-pointer rounded-sm border border-paper/25 px-2.5 py-1 text-xs font-semibold text-mist hover:border-gold hover:text-gold">Ver inscritos</button>
+            <span id="contador" class="text-sm text-mist tabular-nums">${revelados} / ${orden.length}</span>
+          </span>
         </div>
         <p class="mt-1 text-xs text-mist/70">Sorteo nº ${cat.sorteo_intentos} · ${new Date(cat.sorteado_en).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</p>
         <ol id="orden" class="mt-4 grid gap-1.5 ${columnas}">
@@ -232,6 +243,7 @@ async function revelarSiguiente() {
   estado.girando = true
   $('#btn-siguiente')?.setAttribute('disabled', '')
   $$('[data-cat]').forEach((b) => b.setAttribute('disabled', ''))
+  $('#btn-ver-lista')?.setAttribute('disabled', '')
   $('#num-turno').textContent = turno
   $('#detalle').textContent = ''
 
@@ -274,6 +286,7 @@ async function revelarSiguiente() {
   const btn = $('#btn-siguiente')
   if (btn) { btn.removeAttribute('disabled'); btn.textContent = `Revelar turno ${estado.turnos.get(sig.id)}` }
   $$('[data-cat]').forEach((b) => b.removeAttribute('disabled'))
+  $('#btn-ver-lista')?.removeAttribute('disabled')
   if (estado.auto) revelarSiguiente()
 }
 
