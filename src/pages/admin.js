@@ -157,11 +157,12 @@ function conectarAjustes() {
   $$('[data-ajuste]').forEach((input) => {
     const guardar = async () => {
       const raw = input.value.trim().replace(',', '.')
-      if (raw === input.dataset.original) return
+      const anterior = input.dataset.original
       const n = Number(raw)
+      if (raw !== '' && Number.isFinite(n) && n.toFixed(2) === anterior) return // sin cambios
       if (raw === '' || !Number.isFinite(n) || n < 0 || n > 100) {
         toast('El promedio debe estar entre 0 y 100', 'error')
-        input.value = input.dataset.original
+        input.value = anterior
         return
       }
       input.dataset.original = n.toFixed(2) // evita doble guardado (Enter + blur)
@@ -171,7 +172,15 @@ function conectarAjustes() {
       const { error } = n.toFixed(2) === pts(fila?.promedio_jurados)
         ? await supabase.from('ajustes').delete().eq('concursante_id', id)
         : await supabase.from('ajustes').upsert({ concursante_id: id, promedio: n })
-      if (error) return toast(`No se pudo guardar: ${error.message}`, 'error')
+      if (error) {
+        // No quedó guardado: la casilla vuelve al valor real.
+        input.value = anterior
+        input.dataset.original = anterior
+        const falta = /ajustes/.test(error.message) && /schema cache|does not exist/.test(error.message)
+        return toast(falta
+          ? 'No se guardó: falta ejecutar la migración 002_ajustes.sql en Supabase'
+          : `No se guardó: ${error.message}`, 'error')
+      }
       toast(`Promedio final de ${fila?.nombre ?? 'concursante'}: ${n.toFixed(2)}`)
       input.blur()
       cargar()
