@@ -26,6 +26,8 @@
 }
 
 .lob-rise { animation: lob-rise 0.45s ease-out; }
+/* Entrada escalonada (cada elemento define su animation-delay) */
+.lob-entrada { animation: lob-rise 0.45s ease-out both; }
 
 .lob-scroller { scrollbar-width: none; }
 .lob-scroller::-webkit-scrollbar { display: none; }
@@ -203,7 +205,7 @@ html { scroll-behavior: smooth; }
 .lob-resaltado-claro { animation: lob-resaltar-claro 2.8s ease-out; }
 
 @media (prefers-reduced-motion: reduce) {
-  .lob-rise, .lob-abrir .lob-bloque, .lob-dots span, .lob-resaltado, .lob-destello, .lob-llegada, .lob-cajon[open], .lob-resaltado-claro { animation: none; }
+  .lob-rise, .lob-entrada, .lob-abrir .lob-bloque, .lob-dots span, .lob-resaltado, .lob-destello, .lob-llegada, .lob-cajon[open], .lob-resaltado-claro { animation: none; }
   .lob-abrir .lob-telon, .lob-confeti { display: none; }
   .lob-marquee-pista { animation: none; }
   .lob-marquee { overflow-x: auto; -webkit-mask-image: none; mask-image: none; }

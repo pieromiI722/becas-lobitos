@@ -85,22 +85,46 @@ function render() {
   $('#btn-resortear')?.addEventListener('click', () => sortear(cat, true))
 }
 
+/** Antes de sortear: todos los inscritos en orden alfabético, para que el público verifique la lista. */
 function vistaSinSortear(cat, lista) {
+  const alfabetico = [...lista].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }))
+  // Más columnas cuantos más concursantes, para que todo entre en una pantalla 16:9.
+  // Listas largas (p. ej. Secundaria) en modo compacto para que entren en un proyector 1366×768.
+  const denso = lista.length > 24
+  const columnas = denso ? 'sm:columns-2 lg:columns-3 xl:columns-4'
+    : lista.length > 10 ? 'sm:columns-2 xl:columns-3'
+    : 'sm:columns-2'
+
   return `
-    <section class="lob-rise grid min-h-[60vh] place-items-center text-center">
-      <div class="flex max-w-2xl flex-col items-center">
-        <p class="text-xs font-semibold uppercase tracking-[0.28em] text-gold">${esc(cat.nombre)}${cat.descripcion ? ` · ${esc(cat.descripcion)}` : ''}</p>
-        <h1 class="mt-3 text-[3rem] font-extrabold leading-none tracking-[-0.03em] sm:text-[4.5rem]">¿Quién sube primero?</h1>
-        <p class="mt-5 text-lg text-mist">${lista.length} concursantes. El orden lo decide la base de datos al azar; nadie puede elegirlo.
-          Después se revela turno por turno en esta pantalla y en los celulares del público.</p>
-        <button id="btn-sortear" type="button"
-                class="mt-10 inline-flex min-h-[64px] cursor-pointer items-center gap-3 rounded-sm bg-gold px-10 py-4 text-xl font-extrabold text-ink shadow-[0_0_60px_-10px_rgb(247_197_72/0.6)] transition-transform hover:scale-[1.03] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold">
-          Sortear ${esc(cat.nombre)}
-        </button>
-        <div class="mt-12 flex max-w-3xl flex-wrap justify-center gap-2">
-          ${lista.map((c) => `<span class="rounded-full border border-paper/15 bg-paper/5 px-3 py-1 text-sm text-mist">${esc(c.nombre)}</span>`).join('')}
+    <section class="lob-rise">
+      <div class="flex flex-wrap items-end justify-between gap-x-10 gap-y-6">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-[0.28em] text-gold">${esc(cat.nombre)}${cat.descripcion ? ` · ${esc(cat.descripcion)}` : ''}</p>
+          <h1 class="mt-2 font-extrabold leading-none tracking-[-0.03em] ${denso ? 'text-[2.25rem] sm:text-[2.75rem]' : 'text-[2.5rem] sm:text-[3.5rem]'}">Participantes inscritos</h1>
+          <p class="mt-3 ${denso ? 'text-base' : 'text-lg'} text-mist">
+            <b class="text-paper">${lista.length} concursantes</b> · en orden alfabético.
+            Verifiquen que su nombre esté en la lista antes de sortear.
+          </p>
+        </div>
+        <div class="flex flex-col items-start gap-2 sm:items-end">
+          <button id="btn-sortear" type="button"
+                  class="inline-flex min-h-[64px] cursor-pointer items-center gap-3 rounded-sm bg-gold px-10 py-4 text-xl font-extrabold text-ink shadow-[0_0_60px_-10px_rgb(247_197_72/0.6)] transition-transform hover:scale-[1.03] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold">
+            Sortear ${esc(cat.nombre)}
+          </button>
+          <span class="text-xs text-mist/70">El orden lo decide la base de datos al azar.</span>
         </div>
       </div>
+
+      <ol class="${denso ? 'mt-5 gap-x-8' : 'mt-8 gap-x-10'} border-t border-paper/15 pt-1 ${columnas}">
+        ${alfabetico.map((c, i) => `
+          <li class="lob-entrada flex break-inside-avoid items-baseline gap-3 border-b border-paper/10 ${denso ? 'py-1.5' : 'py-2.5'}" style="animation-delay:${Math.min(i * 35, 1400)}ms">
+            <span class="w-7 shrink-0 text-right text-sm font-bold tabular-nums text-gold/80">${i + 1}</span>
+            <span class="min-w-0">
+              <span data-nombre class="block ${denso ? 'text-base 2xl:text-lg' : 'text-lg'} font-bold leading-tight">${esc(c.nombre)}</span>
+              ${c.institucion ? `<span class="block truncate text-xs text-mist/70">${esc(c.institucion)}</span>` : ''}
+            </span>
+          </li>`).join('')}
+      </ol>
     </section>`
 }
 
