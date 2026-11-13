@@ -1,7 +1,6 @@
 @import "tailwindcss";
 
 @theme {
-  --font-serif: "Source Serif 4", Georgia, serif;
   --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
 
   --color-paper: #fbf8f1;
@@ -46,20 +45,84 @@ html { scroll-behavior: smooth; }
   pointer-events: none;
 }
 
-/* Entrada con muescas laterales */
-.lob-ticket {
-  --notch: 14px;
-  border-radius: 4px;
-  -webkit-mask:
-    radial-gradient(circle var(--notch) at 0 50%, transparent 98%, #000) left / 51% 100% no-repeat,
-    radial-gradient(circle var(--notch) at 100% 50%, transparent 98%, #000) right / 51% 100% no-repeat;
-          mask:
-    radial-gradient(circle var(--notch) at 0 50%, transparent 98%, #000) left / 51% 100% no-repeat,
-    radial-gradient(circle var(--notch) at 100% 50%, transparent 98%, #000) right / 51% 100% no-repeat;
-  box-shadow: 0 30px 60px -20px rgb(0 0 0 / 0.5);
+/* Imagen del hero (si el archivo no existe, main.js oculta estos bloques) */
+.lob-hero-img {
+  background: url("/img/hero-declamacion.jpg") 70% center / cover no-repeat;
+}
+.lob-hero-fade {
+  background: linear-gradient(90deg,
+    var(--color-ink) 0%, var(--color-ink) 34%,
+    rgb(18 52 59 / 0.75) 50%, rgb(18 52 59 / 0) 72%);
 }
 
+/* Sala de resultados: dos focos cenitales */
+.lob-sala::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(40% 55% at 50% 0%, rgb(247 197 72 / 0.13), transparent 70%),
+    radial-gradient(30% 40% at 10% 100%, rgb(14 108 118 / 0.35), transparent 70%);
+  pointer-events: none;
+}
+
+/* Cono de luz sobre el podio */
+.lob-foco {
+  background: conic-gradient(from 180deg at 50% 0%,
+    transparent 160deg, rgb(247 197 72 / 0.22) 172deg, rgb(247 197 72 / 0.3) 180deg,
+    rgb(247 197 72 / 0.22) 188deg, transparent 200deg);
+  filter: blur(6px);
+}
+
+/* Telón: pliegues verticales con fleco dorado */
+.lob-telon {
+  background:
+    linear-gradient(to top, var(--color-gold) 0 6px, transparent 6px),
+    repeating-linear-gradient(90deg,
+      #0a2328 0px, #154049 18px, #1c5560 30px, #154049 42px, #0a2328 60px);
+  box-shadow: inset 0 -14px 24px -12px rgb(0 0 0 / 0.6);
+}
+.lob-telon-izq { left: 0; transform-origin: left; }
+.lob-telon-der { right: 0; transform-origin: right; }
+.lob-abrir .lob-telon-izq { animation: lob-telon-izq 1.5s cubic-bezier(.7,0,.3,1) .25s forwards; }
+.lob-abrir .lob-telon-der { animation: lob-telon-der 1.5s cubic-bezier(.7,0,.3,1) .25s forwards; }
+.lob-abierto .lob-telon { display: none; }
+@keyframes lob-telon-izq { to { transform: translateX(-100%) scaleX(.6); } }
+@keyframes lob-telon-der { to { transform: translateX(100%)  scaleX(.6); } }
+
+/* Podio: las columnas suben al revelarse */
+.lob-abrir .lob-bloque { animation: lob-subir .9s cubic-bezier(.2,.8,.2,1) both; }
+.lob-abrir .lob-bloque[data-p="3"] { animation-delay: 1.3s; }
+.lob-abrir .lob-bloque[data-p="2"] { animation-delay: 1.6s; }
+.lob-abrir .lob-bloque[data-p="1"] { animation-delay: 1.9s; }
+@keyframes lob-subir { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: none; } }
+
+/* Confeti */
+.lob-confeti {
+  position: absolute;
+  top: -12px;
+  width: 8px;
+  height: 14px;
+  opacity: 0;
+  animation: lob-caer 3.2s cubic-bezier(.3,.6,.5,1) forwards;
+}
+@keyframes lob-caer {
+  0%   { opacity: 1; transform: translate3d(0, 0, 0) rotate(0); }
+  100% { opacity: 0; transform: translate3d(var(--dx), 520px, 0) rotate(var(--rot)); }
+}
+
+/* Puntos de "en deliberación" */
+.lob-dots span { animation: lob-dot 1.2s infinite ease-in-out both; }
+.lob-dots span:nth-child(2) { animation-delay: .15s; }
+.lob-dots span:nth-child(3) { animation-delay: .3s; }
+@keyframes lob-dot { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+
+/* Fila resaltada desde el buscador */
+@keyframes lob-resaltar { 0%, 60% { background: rgb(247 197 72 / 0.28); } 100% { background: transparent; } }
+.lob-resaltado { animation: lob-resaltar 2.8s ease-out; }
+
 @media (prefers-reduced-motion: reduce) {
-  .lob-rise { animation: none; }
+  .lob-rise, .lob-abrir .lob-bloque, .lob-dots span, .lob-resaltado { animation: none; }
+  .lob-abrir .lob-telon, .lob-confeti { display: none; }
   html { scroll-behavior: auto; }
 }
