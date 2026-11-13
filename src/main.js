@@ -35,6 +35,8 @@ const estado = {
   vistas: new Set(),        // categorías cuyo telón ya se abrió en esta visita
   turnos: new Map(),        // concursante_id → turno (solo los ya revelados en el sorteo)
   turnosVistos: null,       // ids ya mostrados; los nuevos entran con animación
+  ordenCat: null,           // categoría elegida en la sección Orden de presentación
+  ordenManual: false,       // si el visitante eligió una pestaña, no se la cambiamos
 }
 
 const catPorId = (id) => estado.categorias.find((c) => c.id === id)
@@ -72,6 +74,12 @@ async function cargar() {
     anunciar(recien)
   }
 
+  const enVivo = estado.categorias.find(sorteoEnVivo)
+  if (enVivo && !estado.ordenManual) estado.ordenCat = enVivo.id
+  if (!estado.ordenCat || !catPorId(estado.ordenCat)) {
+    estado.ordenCat = (estado.categorias.find((c) => c.sorteado_en) ?? estado.categorias[0])?.id
+  }
+
   if (!estado.activa || !catPorId(estado.activa)) {
     const desdeHash = location.hash.match(/^#r-(.+)$/)?.[1]
     const ultima = estado.categorias.filter((c) => c.publicada)
@@ -84,6 +92,7 @@ async function cargar() {
 // ─── RENDER ──────────────────────────────────────────────────────────────────
 
 function render() {
+  renderOrden()
   cartelera.innerHTML = estado.categorias.map(tarjetaCategoria).join('')
   $$('[data-cat]', cartelera).forEach((b) => b.addEventListener('click', () => {
     estado.activa = b.dataset.cat
@@ -106,6 +115,8 @@ function render() {
   } else {
     escenario.innerHTML = vistaPendiente(cat)
   }
+
+  $('[data-ver-orden]', escenario)?.addEventListener('click', (e) => abrirPanelOrden(e.currentTarget.dataset.verOrden))
 
   if (estado.resaltado) {
     const fila = $(`[data-fila="${estado.resaltado}"]`)
@@ -239,58 +250,21 @@ function clasificacion(filas) {
 // ─── CATEGORÍA PENDIENTE: telón cerrado + orden de presentación ──────────────
 
 function vistaPendiente(cat) {
-  const lista = concursantesDe(cat.id)
-  const sorteados = lista.filter((c) => estado.turnos.has(c.id))
-    .sort((a, b) => estado.turnos.get(a.id) - estado.turnos.get(b.id))
-  const porSortear = lista.filter((c) => !estado.turnos.has(c.id))
-  const enVivo = Boolean(cat.sorteado_en) && porSortear.length > 0
-
-  // Los turnos que aparecen por primera vez entran con animación.
-  const nuevos = new Set(estado.turnosVistos ? sorteados.filter((c) => !estado.turnosVistos.has(c.id)).map((c) => c.id) : [])
-  estado.turnosVistos = new Set([...(estado.turnosVistos ?? []), ...sorteados.map((c) => c.id)])
-
-  const cabecera = enVivo
-    ? `<span class="relative flex h-3 w-3"><span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold opacity-70"></span><span class="relative inline-flex h-3 w-3 rounded-full bg-gold"></span></span>
-       <p class="text-2xl font-extrabold tracking-tight sm:text-3xl">Sorteo en vivo</p>
-       <p class="max-w-[46ch] text-[0.9375rem] text-mist">Se está sorteando el orden de presentación de ${esc(cat.nombre)}. Cada turno aparece aquí en cuanto se revela en el auditorio.</p>`
-    : `<span class="lob-dots flex gap-1.5 text-gold" aria-hidden="true"><span class="h-2.5 w-2.5 rounded-full bg-current"></span><span class="h-2.5 w-2.5 rounded-full bg-current"></span><span class="h-2.5 w-2.5 rounded-full bg-current"></span></span>
-       <p class="text-2xl font-extrabold tracking-tight sm:text-3xl">El jurado está deliberando</p>
-       <p class="max-w-[46ch] text-[0.9375rem] text-mist">Cuando se publiquen los resultados de ${esc(cat.nombre)}, el telón se abrirá aquí mismo. No hace falta recargar.</p>`
-
-  const fila = (c, turno) => `
-    <li data-fila="${c.id}" class="${nuevos.has(c.id) ? 'lob-llegada' : ''} flex gap-4 border-b border-paper/10 py-3">
-      ${turno
-        ? `<span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold text-sm font-extrabold tabular-nums text-ink">${turno}</span>`
-        : `<span class="w-7 shrink-0 pt-0.5 text-sm font-bold tabular-nums text-mist/70">${c.orden ?? ''}</span>`}
-      <span class="min-w-0">
-        <span class="block font-bold leading-tight">${esc(c.nombre)}</span>
-        ${c.poema ? `<span class="mt-0.5 block text-sm italic text-gold/90">${esc(c.poema)}</span>` : ''}
-        ${c.institucion ? `<span class="block truncate text-xs text-mist/70">${esc(c.institucion)}</span>` : ''}
-      </span>
-    </li>`
-
+  const total = concursantesDe(cat.id).length
+  const enVivo = sorteoEnVivo(cat)
   return `
     <div class="relative overflow-hidden rounded-sm border ${enVivo ? 'border-gold/50' : 'border-paper/10'}">
       <div class="lob-telon absolute inset-0" aria-hidden="true"></div>
-      <div class="relative flex min-h-[220px] flex-col items-center justify-center gap-3 px-6 py-12 text-center">${cabecera}</div>
-    </div>
-    ${sorteados.length ? `
-      <div class="mt-8">
-        <h3 class="flex items-baseline justify-between gap-4 text-[11px] font-semibold uppercase tracking-[0.24em] text-mist">
-          <span>Orden de presentación${enVivo ? ` · ${sorteados.length} de ${lista.length}` : ''}</span>
-          ${cat.sorteo_intentos ? `<span class="normal-case tracking-normal text-mist/60">Sorteo nº ${cat.sorteo_intentos}</span>` : ''}
-        </h3>
-        <ol class="mt-3 grid gap-x-10 border-t border-paper/10 md:grid-cols-2">
-          ${sorteados.map((c) => fila(c, estado.turnos.get(c.id))).join('')}
-        </ol>
-      </div>` : ''}
-    ${porSortear.length ? `
-      <div class="mt-8 ${sorteados.length ? 'opacity-60' : ''}">
-        <h3 class="text-[11px] font-semibold uppercase tracking-[0.24em] text-mist">${sorteados.length ? `Por sortear · ${porSortear.length}` : `Concursantes · ${lista.length}`}</h3>
-        <ol class="mt-3 grid gap-x-10 border-t border-paper/10 md:grid-cols-2">
-          ${porSortear.map((c) => fila(c, null)).join('')}
-        </ol>
-      </div>` : ''}`
+      <div class="relative flex min-h-[240px] flex-col items-center justify-center gap-3 px-6 py-12 text-center">
+        <span class="lob-dots flex gap-1.5 text-gold" aria-hidden="true"><span class="h-2.5 w-2.5 rounded-full bg-current"></span><span class="h-2.5 w-2.5 rounded-full bg-current"></span><span class="h-2.5 w-2.5 rounded-full bg-current"></span></span>
+        <p class="text-2xl font-extrabold tracking-tight sm:text-3xl">${enVivo ? 'Sorteo en curso' : 'El jurado está deliberando'}</p>
+        <p class="max-w-[46ch] text-[0.9375rem] text-mist">Cuando se publiquen los resultados de ${esc(cat.nombre)}, el telón se abrirá aquí mismo. No hace falta recargar.</p>
+        <button type="button" data-ver-orden="${cat.id}"
+                class="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-sm border-[1.5px] border-paper/30 px-4 py-2.5 text-sm font-semibold transition-colors hover:border-gold hover:text-gold focus-visible:outline-2 focus-visible:outline-gold">
+          ${total} concursantes · ver orden de presentación →
+        </button>
+      </div>
+    </div>`
 }
 
 const pts = (n) => (n == null ? '—' : Number(n).toFixed(2))
@@ -334,6 +308,157 @@ async function compartir(cat) {
   } catch { /* el usuario canceló */ }
 }
 
+// ─── ORDEN DE PRESENTACIÓN (sorteo) ──────────────────────────────────────────
+
+const ordenTabs  = $('#orden-tabs')
+const ordenCinta = $('#orden-cinta')
+const panelOrden = $('#panel-orden')
+
+const ordenDe = (id) => concursantesDe(id)
+  .filter((c) => estado.turnos.has(c.id))
+  .sort((a, b) => estado.turnos.get(a.id) - estado.turnos.get(b.id))
+
+function renderOrden() {
+  if (!ordenTabs) return
+  const cat = catPorId(estado.ordenCat)
+  if (!cat) return
+
+  ordenTabs.innerHTML = estado.categorias.map((c) => {
+    const activa = c.id === cat.id
+    const vivo = sorteoEnVivo(c)
+    return `<button type="button" role="tab" aria-selected="${activa}" data-orden-cat="${c.id}"
+              class="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border-[1.5px] px-3.5 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal
+                     ${activa ? 'border-ink bg-ink text-paper' : 'border-sand bg-white hover:border-ink'}">
+              ${vivo ? '<span class="h-1.5 w-1.5 rounded-full bg-brick"></span>' : ''}${esc(c.nombre)}
+            </button>`
+  }).join('')
+  $$('[data-orden-cat]', ordenTabs).forEach((b) => b.addEventListener('click', () => {
+    estado.ordenCat = b.dataset.ordenCat
+    estado.ordenManual = true
+    renderOrden()
+  }))
+
+  const lista = concursantesDe(cat.id)
+  const orden = ordenDe(cat.id)
+  const vivo = sorteoEnVivo(cat)
+  $('#orden-vivo').classList.toggle('hidden', !vivo)
+  $('#orden-vivo').classList.toggle('inline-flex', vivo)
+
+  // Turnos que aparecen por primera vez → animación de llegada
+  const nuevos = new Set(estado.turnosVistos ? orden.filter((c) => !estado.turnosVistos.has(c.id)).map((c) => c.id) : [])
+  estado.turnosVistos = new Set([...(estado.turnosVistos ?? []), ...[...estado.turnos.keys()]])
+
+  if (!cat.sorteado_en) {
+    ordenCinta.innerHTML = `
+      <div class="flex flex-wrap items-center justify-between gap-4 rounded-sm border-[1.5px] border-dashed border-sand bg-paper px-5 py-5">
+        <p class="max-w-[60ch] text-[0.9375rem]">
+          <b>El sorteo de ${esc(cat.nombre)} aún no se realiza.</b>
+          <span class="text-slate">Se hará en vivo en el auditorio y aparecerá aquí al instante.</span>
+        </p>
+        <button type="button" data-panel class="cursor-pointer text-sm font-bold text-teal underline-offset-4 hover:underline">Ver los ${lista.length} inscritos →</button>
+      </div>`
+  } else {
+    const anterior = $('.lob-cinta', ordenCinta)?.scrollLeft ?? 0
+    const huecos = Math.max(0, lista.length - orden.length)
+    ordenCinta.innerHTML = `
+      <div class="relative">
+        <ol class="lob-cinta lob-scroller flex snap-x gap-2.5 overflow-x-auto pb-2">
+          ${orden.map((c) => `
+            <li data-turno-id="${c.id}" class="${nuevos.has(c.id) ? 'lob-llegada border-gold bg-gold/10' : 'border-sand bg-paper'} flex w-44 shrink-0 snap-start flex-col rounded-sm border-[1.5px] px-3.5 py-3">
+              <span class="text-[1.75rem] font-extrabold leading-none tracking-tight text-teal tabular-nums">${String(estado.turnos.get(c.id)).padStart(2, '0')}</span>
+              <span class="mt-1.5 line-clamp-2 text-[0.9375rem] font-bold leading-tight">${esc(c.nombre)}</span>
+              ${c.institucion ? `<span class="mt-auto truncate pt-1 text-xs text-slate">${esc(c.institucion)}</span>` : ''}
+            </li>`).join('')}
+          ${Array.from({ length: huecos }, (_, k) => `
+            <li class="flex w-44 shrink-0 snap-start flex-col rounded-sm border-[1.5px] border-dashed border-sand px-3.5 py-3 text-slate/60">
+              <span class="text-[1.75rem] font-extrabold leading-none tracking-tight tabular-nums">${String(orden.length + k + 1).padStart(2, '0')}</span>
+              <span class="mt-1.5 text-sm">Por revelar</span>
+            </li>`).join('')}
+        </ol>
+      </div>
+      <div class="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm">
+        <span class="text-slate">${vivo ? `${orden.length} de ${lista.length} turnos revelados` : `${lista.length} concursantes`} · Sorteo nº ${cat.sorteo_intentos}</span>
+        <span class="flex items-center gap-3">
+          <span class="hidden gap-1.5 sm:flex">
+            <button type="button" data-cinta="-1" aria-label="Desplazar a la izquierda" class="h-9 w-9 cursor-pointer rounded-full border-[1.5px] border-sand hover:border-ink">←</button>
+            <button type="button" data-cinta="1" aria-label="Desplazar a la derecha" class="h-9 w-9 cursor-pointer rounded-full border-[1.5px] border-sand hover:border-ink">→</button>
+          </span>
+          <button type="button" data-panel class="cursor-pointer font-bold text-teal underline-offset-4 hover:underline">Ver lista completa →</button>
+        </span>
+      </div>`
+
+    const cinta = $('.lob-cinta', ordenCinta)
+    const ultimoNuevo = [...$$('.lob-llegada', cinta)].pop()
+    if (ultimoNuevo) cinta.scrollTo({ left: ultimoNuevo.offsetLeft - cinta.clientWidth / 2 + ultimoNuevo.clientWidth / 2, behavior: reducido ? 'auto' : 'smooth' })
+    else cinta.scrollLeft = anterior
+    $$('[data-cinta]', ordenCinta).forEach((b) => b.addEventListener('click', () =>
+      cinta.scrollBy({ left: Number(b.dataset.cinta) * cinta.clientWidth * 0.8, behavior: reducido ? 'auto' : 'smooth' })))
+  }
+  $('[data-panel]', ordenCinta)?.addEventListener('click', () => abrirPanelOrden(cat.id))
+  actualizarAvisoSorteo()
+}
+
+function abrirPanelOrden(catId, resaltarId = null) {
+  const cat = catPorId(catId)
+  if (!cat || !panelOrden) return
+  const orden = ordenDe(cat.id)
+  const resto = concursantesDe(cat.id).filter((c) => !estado.turnos.has(c.id))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+
+  $('#panel-orden-titulo').textContent = cat.nombre
+  $('#panel-orden-sub').textContent = cat.sorteado_en
+    ? `${orden.length} de ${orden.length + resto.length} turnos · Sorteo nº ${cat.sorteo_intentos}`
+    : `${resto.length} inscritos · sorteo pendiente`
+
+  const fila = (c, turno) => `
+    <li data-fila-panel="${c.id}" class="flex gap-3.5 border-b border-sand-200 py-3.5">
+      ${turno
+        ? `<span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal text-sm font-extrabold tabular-nums text-paper">${turno}</span>`
+        : `<span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-[1.5px] border-dashed border-sand text-sm text-slate">?</span>`}
+      <span class="min-w-0">
+        <span class="block font-bold leading-tight">${esc(c.nombre)}</span>
+        ${c.poema ? `<span class="mt-0.5 block text-sm italic text-teal">${esc(c.poema)}</span>` : ''}
+        ${c.institucion ? `<span class="block text-xs text-slate">${esc(c.institucion)}</span>` : ''}
+      </span>
+    </li>`
+
+  $('#panel-orden-lista').innerHTML =
+    orden.map((c) => fila(c, estado.turnos.get(c.id))).join('') +
+    (resto.length && orden.length ? `<li class="pt-6 pb-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate">Por sortear · ${resto.length}</li>` : '') +
+    resto.map((c) => fila(c, null)).join('')
+
+  if (!panelOrden.open) panelOrden.showModal()
+  const destacado = resaltarId && $(`[data-fila-panel="${resaltarId}"]`, panelOrden)
+  if (destacado) {
+    destacado.classList.add('lob-resaltado-claro')
+    destacado.scrollIntoView({ block: 'center' })
+  } else $('#panel-orden-lista').scrollTop = 0
+}
+
+panelOrden?.addEventListener('click', (e) => {
+  if (e.target === panelOrden || e.target.closest('[data-cerrar-panel]')) panelOrden.close()
+})
+
+// Aviso flotante: visible solo durante un sorteo en vivo y mientras la sección no está a la vista.
+const aviso = $('#aviso-sorteo')
+let ordenVisible = false
+if (aviso && 'IntersectionObserver' in window) {
+  new IntersectionObserver(([e]) => { ordenVisible = e.isIntersecting; actualizarAvisoSorteo() }, { threshold: 0.2 })
+    .observe($('#orden'))
+}
+function actualizarAvisoSorteo() {
+  if (!aviso) return
+  const vivo = estado.categorias.find(sorteoEnVivo)
+  aviso.hidden = !vivo || ordenVisible
+  if (vivo) $('#aviso-sorteo-txt').textContent = `Sorteo en vivo · ${vivo.nombre} ${ordenDe(vivo.id).length}/${concursantesDe(vivo.id).length}`
+}
+aviso?.addEventListener('click', (e) => {
+  e.preventDefault()
+  const vivo = estado.categorias.find(sorteoEnVivo)
+  if (vivo) { estado.ordenCat = vivo.id; estado.ordenManual = false; renderOrden() }
+  $('#orden').scrollIntoView({ behavior: reducido ? 'auto' : 'smooth' })
+})
+
 // ─── BUSCADOR ────────────────────────────────────────────────────────────────
 
 const inputBuscar = $('#buscar')
@@ -351,7 +476,8 @@ function buscar() {
     ? hallados.map((c) => {
         const cat = catPorId(c.categoria_id)
         const r = cat?.publicada && estado.resultados.find((x) => x.concursante_id === c.id)
-        const estadoTxt = r?.puesto ? `<b class="text-teal">${r.puesto}° puesto · ${pts(r.promedio)}</b>` : 'En deliberación'
+        const estadoTxt = r?.puesto ? `<b class="text-teal">${r.puesto}° puesto · ${pts(r.promedio)}</b>`
+          : estado.turnos.has(c.id) ? `Turno ${estado.turnos.get(c.id)}` : 'En deliberación'
         return `
           <li><button type="button" data-ir="${c.id}" class="flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-3 text-left hover:bg-sand-200/60 focus-visible:bg-sand-200/60 focus-visible:outline-none">
             <span class="min-w-0"><span class="block truncate font-semibold">${esc(c.nombre)}</span>
@@ -364,10 +490,11 @@ function buscar() {
 
   $$('[data-ir]', listaBuscar).forEach((b) => b.addEventListener('click', () => {
     const c = estado.concursantes.find((x) => x.id === Number(b.dataset.ir))
-    estado.activa = c.categoria_id
-    estado.resaltado = c.id
     inputBuscar.value = c.nombre
     listaBuscar.classList.add('hidden')
+    if (!catPorId(c.categoria_id)?.publicada) return abrirPanelOrden(c.categoria_id, c.id)
+    estado.activa = c.categoria_id
+    estado.resaltado = c.id
     render()
   }))
 }

@@ -190,8 +190,20 @@ html { scroll-behavior: smooth; }
 /* Visor */
 .lob-visor[open] { animation: lob-rise .3s ease-out; }
 
+/* ─── Orden de presentación ─────────────────────────────────────────────── */
+.lob-cinta {
+  -webkit-mask-image: linear-gradient(to right, #000 92%, transparent);
+          mask-image: linear-gradient(to right, #000 92%, transparent);
+}
+/* Panel lateral */
+@keyframes lob-cajon { from { transform: translateX(100%); } to { transform: none; } }
+.lob-cajon[open] { animation: lob-cajon .35s cubic-bezier(.2,.8,.2,1); }
+/* Resaltado sobre fondo claro (buscador → panel) */
+@keyframes lob-resaltar-claro { 0%, 60% { background: rgb(247 197 72 / 0.35); } 100% { background: transparent; } }
+.lob-resaltado-claro { animation: lob-resaltar-claro 2.8s ease-out; }
+
 @media (prefers-reduced-motion: reduce) {
-  .lob-rise, .lob-abrir .lob-bloque, .lob-dots span, .lob-resaltado, .lob-destello, .lob-llegada { animation: none; }
+  .lob-rise, .lob-abrir .lob-bloque, .lob-dots span, .lob-resaltado, .lob-destello, .lob-llegada, .lob-cajon[open], .lob-resaltado-claro { animation: none; }
   .lob-abrir .lob-telon, .lob-confeti { display: none; }
   .lob-marquee-pista { animation: none; }
   .lob-marquee { overflow-x: auto; -webkit-mask-image: none; mask-image: none; }
