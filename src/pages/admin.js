@@ -4,8 +4,15 @@ import { requerirIngreso, salir } from '../lib/auth.js'
 import { esc, $, $$, norm, toast } from '../lib/ui.js'
 import { parsearCSV, aConcursantes } from '../lib/csv.js'
 import { CRITERIOS } from '../lib/rubrica.js'
+import { abrirDocumento, actaGenerada } from '../lib/documentos.js'
 
 const app = $('#app')
+
+// Imágenes del acta y los diplomas (URL absoluta: se usan en una ventana aparte)
+const RECURSOS = {
+  escudo:    new URL('../assets/documentos/escudo.png', import.meta.url).href,
+  plantilla: new URL('../assets/documentos/plantilla-diploma.png', import.meta.url).href,
+}
 
 const estado = {
   categorias: [],
@@ -82,6 +89,15 @@ function render() {
              class="inline-flex min-h-[48px] items-center gap-2 rounded-sm border-[1.5px] border-ink px-5 py-3 font-sans text-base font-bold transition-colors hover:bg-ink hover:text-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal">
             Sorteo ${cat.sorteado_en ? `<span class="text-xs font-semibold text-teal">✓ nº ${cat.sorteo_intentos}</span>` : ''} ↗
           </a>
+          <button id="btn-acta" type="button" ${filas.length ? '' : 'disabled'} title="Acta de calificación y conformidad (se abre en una ventana para revisar y guardar en PDF)"
+                  class="inline-flex min-h-[48px] cursor-pointer items-center gap-2 rounded-sm border-[1.5px] border-ink px-5 py-3 font-sans text-base font-bold transition-colors hover:bg-ink hover:text-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal disabled:cursor-not-allowed disabled:opacity-50">
+            Acta ↗
+          </button>
+          <button id="btn-diplomas" type="button" ${filas.length && actaGenerada(cat.id) ? '' : 'disabled'}
+                  title="${actaGenerada(cat.id) ? 'Diplomas del 1.º al 5.º puesto' : 'Primero genera el acta de esta categoría'}"
+                  class="inline-flex min-h-[48px] cursor-pointer items-center gap-2 rounded-sm border-[1.5px] border-ink px-5 py-3 font-sans text-base font-bold transition-colors hover:bg-ink hover:text-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal disabled:cursor-not-allowed disabled:opacity-50">
+            Diplomas ↗
+          </button>
           <button id="btn-publicar" type="button" ${filas.length ? '' : 'disabled'}
                   class="min-h-[48px] cursor-pointer rounded-sm px-6 py-3 font-sans text-base font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal disabled:cursor-not-allowed disabled:opacity-50
                          ${cat.publicada ? 'border-[1.5px] border-brick text-brick hover:bg-brick hover:text-paper' : 'bg-gold text-ink hover:bg-gold-600'}">
@@ -98,8 +114,25 @@ function render() {
 
   $$('[data-cat]').forEach((b) => b.addEventListener('click', () => { estado.categoria = b.dataset.cat; render() }))
   $('#btn-publicar')?.addEventListener('click', () => publicar(cat, filas, completos, empatados))
+  $('#btn-acta')?.addEventListener('click', () => documento('acta', cat.id))
+  $('#btn-diplomas')?.addEventListener('click', () => documento('diplomas', cat.id))
   conectarAjustes()
   conectarImportar()
+}
+
+/** Acta o diplomas en una ventana aparte. Solo lee de la base. */
+async function documento(tipo, catId) {
+  try {
+    const ok = await abrirDocumento(tipo, supabase, catId, RECURSOS)
+    // Tras generar el acta se habilitan los diplomas (sin redibujar la página)
+    const btn = $('#btn-diplomas')
+    if (ok && tipo === 'acta' && btn && estado.categoria === catId) {
+      btn.disabled = false
+      btn.title = 'Diplomas del 1.º al 5.º puesto'
+    }
+  } catch (e) {
+    toast(e.message, 'error')
+  }
 }
 
 /** Ids de concursantes que comparten promedio final con otro de su categoría. */

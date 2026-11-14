@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* El acta y los diplomas llevan su propio CSS (ventana aparte): que no agreguen clases aquí. */
+@source not "./lib/documentos.js";
 
 @theme {
   --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
