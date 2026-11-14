@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase.js'
 import { requerirIngreso, salir } from '../lib/auth.js'
 import { esc, $, $$, norm, toast } from '../lib/ui.js'
 import { parsearCSV, aConcursantes } from '../lib/csv.js'
+import { CRITERIOS } from '../lib/rubrica.js'
 
 const app = $('#app')
 
@@ -10,6 +11,8 @@ const estado = {
   categorias: [],
   resultados: [],
   nJurados: 0,
+  jurados: [],            // [{ id, nombre, corto }] en orden fijo
+  notas: new Map(),       // `${jurado_id}|${concursante_id}` → fila de calificaciones
   categoria: null,
   importacion: null, // { filas, errores }
 }
@@ -20,19 +23,22 @@ const delCat = (id) => estado.resultados.filter((r) => r.categoria_id === id)
 // ─── DATOS ───────────────────────────────────────────────────────────────────
 
 async function cargar() {
-  const [cats, res, jur] = await Promise.all([
+  const [cats, res, jur, cal] = await Promise.all([
     supabase.from('categorias').select('*').order('orden'),
     supabase.rpc('resultados'),
-    supabase.from('perfiles').select('id', { count: 'exact', head: true }).eq('rol', 'jurado'),
+    supabase.from('perfiles').select('id, nombre, usuario').eq('rol', 'jurado').order('usuario'),
+    supabase.from('calificaciones').select('*'),
   ])
-  const err = cats.error || res.error || jur.error
+  const err = cats.error || res.error || jur.error || cal.error
   if (err) {
     app.innerHTML = `<p class="px-5 py-20 text-center font-sans text-brick">Error: ${esc(err.message)}</p>`
     return
   }
   estado.categorias = cats.data
   estado.resultados = res.data
-  estado.nJurados   = jur.count ?? 0
+  estado.jurados    = jur.data.map((j) => ({ ...j, corto: apellido(j.nombre) }))
+  estado.nJurados   = estado.jurados.length
+  estado.notas      = new Map(cal.data.map((k) => [`${k.jurado_id}|${k.concursante_id}`, k]))
   estado.categoria ??= estado.categorias[0]?.id
   render()
 }
@@ -109,16 +115,32 @@ function empates(filas) {
 
 function pts(n) { return n == null ? '—' : Number(n).toFixed(2) }
 
+/** "Dra. María Teresa Zúñiga Norero" → "Zúñiga" (primer apellido). */
+function apellido(nombre) {
+  const p = String(nombre).replace(/^(dra?|lic|mg|prof)\.?\s+/i, '').trim().split(/\s+/)
+  return p.length >= 3 ? p[p.length - 2] : p[p.length - 1]
+}
+
+/** Nota de un jurado; al pasar el mouse muestra el desglose por criterio. */
+function celdaNota(k, jurado) {
+  if (!k) return '<td class="py-2.5 pr-3 text-right text-sand-600" title="Aún no califica">—</td>'
+  const desglose = CRITERIOS.map((c) => `${c.nombre}: ${Number(k[c.campo])}/${c.max}`).join('\n')
+  return `<td class="py-2.5 pr-3 text-right tabular-nums" title="${esc(`${jurado.nombre} — ${pts(k.total)}\n\n${desglose}${k.observaciones ? `\n\nObs.: ${k.observaciones}` : ''}`)}">
+    <span class="cursor-help border-b border-dotted border-slate/40">${pts(k.total)}</span></td>`
+}
+
 function tabla(filas, cat, empatados) {
   const editable = !cat.publicada
   return `
     <div class="mt-6 overflow-x-auto">
-      <table class="w-full min-w-[760px] font-sans text-sm">
+      <table class="w-full min-w-[980px] font-sans text-sm">
         <thead>
           <tr class="border-b-[3px] border-ink text-left text-[11px] uppercase tracking-[0.14em] text-slate">
             <th class="py-2 pr-3">Puesto</th><th class="py-2 pr-3">Nº</th><th class="py-2 pr-3">Concursante</th>
-            <th class="py-2 pr-3">Institución</th><th class="py-2 pr-3 text-center">Jurados</th>
-            <th class="py-2 pr-3 text-right">Prom. jurados</th><th class="py-2 text-right">Promedio final</th>
+            <th class="py-2 pr-3">Institución</th>
+            ${estado.jurados.map((j) => `<th class="py-2 pr-3 text-right normal-case tracking-normal" title="${esc(j.nombre)}"><span class="block text-[10px] uppercase tracking-[0.14em] text-slate/70">Jurado</span>${esc(j.corto)}</th>`).join('')}
+            <th class="py-2 pr-3 text-right">Promedio<span class="block text-[10px] text-slate/70">de los ${estado.nJurados}</span></th>
+            <th class="py-2 text-right">Promedio final</th>
           </tr>
         </thead>
         <tbody>
@@ -133,9 +155,12 @@ function tabla(filas, cat, empatados) {
               </td>
               <td class="py-2.5 pr-3 text-slate">${r.orden ?? ''}</td>
               <td class="py-2.5 pr-3 font-semibold">${esc(r.nombre)}</td>
-              <td class="py-2.5 pr-3 text-slate">${esc(r.institucion ?? '')}</td>
-              <td class="py-2.5 pr-3 text-center"><span class="rounded-sm px-2 py-0.5 font-bold ${falta ? 'bg-brick/10 text-brick' : 'bg-teal/10 text-teal'}">${r.jurados_calificaron}/${estado.nJurados}</span></td>
-              <td class="py-2.5 pr-3 text-right tabular-nums text-slate">${pts(r.promedio_jurados)}</td>
+              <td class="max-w-[200px] truncate py-2.5 pr-3 text-xs text-slate" title="${esc(r.institucion ?? '')}">${esc(r.institucion ?? '')}</td>
+              ${estado.jurados.map((j) => celdaNota(estado.notas.get(`${j.id}|${r.concursante_id}`), j)).join('')}
+              <td class="py-2.5 pr-3 text-right">
+                <span class="text-base font-bold tabular-nums">${pts(r.promedio_jurados)}</span>
+                ${falta ? `<span class="block text-[10px] font-semibold text-brick">${r.jurados_calificaron} de ${estado.nJurados}</span>` : ''}
+              </td>
               <td class="py-2 text-right whitespace-nowrap">
                 ${editable && r.promedio != null ? `
                   <span class="inline-flex items-center justify-end gap-1.5">
