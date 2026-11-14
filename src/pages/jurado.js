@@ -263,8 +263,13 @@ function conectarFormulario() {
     estado.sucio = false
     toast(`Guardado: ${fmt(data.total, 1)} puntos`)
 
-    // Pasa al siguiente concursante pendiente de la misma categoría.
-    const siguiente = delCat(estado.categoria).find((c) => !estado.notas.has(c.id))
+    // Pasa al siguiente pendiente DESPUÉS del que se acaba de calificar, siguiendo el
+    // orden de presentación. Si alguien se saltó (p. ej. se presentará al final), no
+    // se vuelve a él hasta terminar la lista.
+    const lista = delCat(estado.categoria)
+    const i = lista.findIndex((c) => c.id === data.concursante_id)
+    const pendiente = (c) => !estado.notas.has(c.id)
+    const siguiente = lista.slice(i + 1).find(pendiente) ?? lista.slice(0, i).find(pendiente)
     if (siguiente) estado.seleccionado = siguiente.id
     render()
   })
